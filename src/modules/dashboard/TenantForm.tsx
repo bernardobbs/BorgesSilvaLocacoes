@@ -231,7 +231,7 @@ export default function TenantForm() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label>CPF</Label>
-                <MaskedInput mask="cpf" value={formData.cpf} onChange={v => set("cpf", v)} placeholder="000.000.000-00" />
+                <MaskedInput mask="cpf" value={formData.cpf} onValueChange={v => set("cpf", v)} placeholder="000.000.000-00" />
               </div>
               <div className="space-y-1.5">
                 <Label>RG</Label>
@@ -241,7 +241,7 @@ export default function TenantForm() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label>Telefone *</Label>
-                <MaskedInput mask="phone" value={formData.phone} onChange={v => set("phone", v)} placeholder="(00) 00000-0000" />
+                <MaskedInput mask="phone" value={formData.phone} onValueChange={v => set("phone", v)} placeholder="(00) 00000-0000" />
               </div>
               <div className="space-y-1.5">
                 <Label>E-mail</Label>
