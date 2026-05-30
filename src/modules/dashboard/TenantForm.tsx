@@ -277,11 +277,11 @@ export default function TenantForm() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label>Data de início *</Label>
-                <DatePicker date={formData.startDate} onDateChange={d => set("startDate", d)} />
+                <DatePicker date={formData.startDate} onSelect={d => set("startDate", d)} />
               </div>
               <div className="space-y-1.5">
                 <Label>Data de término <span className="text-muted-foreground font-normal">(opcional)</span></Label>
-                <DatePicker date={formData.endDate} onDateChange={d => set("endDate", d)} />
+                <DatePicker date={formData.endDate} onSelect={d => set("endDate", d)} />
               </div>
             </div>
           </CardContent>
