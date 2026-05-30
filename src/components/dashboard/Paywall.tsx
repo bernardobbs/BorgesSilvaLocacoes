@@ -3,8 +3,7 @@
 "use client";
 import React from "react";
 
-// Export nomeado para compatibilidade com DashboardLayout
-export function Paywall({ children }: { children: React.ReactNode }) {
+export function Paywall({ children }: { children?: React.ReactNode }) {
   return <>{children}</>;
 }
 
