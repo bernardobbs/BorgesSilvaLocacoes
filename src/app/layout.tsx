@@ -12,7 +12,7 @@ const plusJakartaSans = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-    metadataBase: new URL("https://borges-silva-locacoesgestaodeimoveis.com.br"),
+    metadataBase: new URL("https://borges-silva-locacoes.vercel.app"),
     title: {
         default: "Borges Silva Locações - Gestão Inteligente de Imóveis",
         template: "%s | Borges Silva Locações",
@@ -40,8 +40,8 @@ export const metadata: Metadata = {
         "organização de imóveis",
         "sistema de locação",
     ],
-    authors: [{ name: "Renilson Medeiros" }],
-    creator: "Renilson Medeiros",
+    authors: [{ name: "Borges Silva Locações" }],
+    creator: "Borges Silva Locações",
     publisher: "Borges Silva Locações",
     formatDetection: {
         email: false,
@@ -51,7 +51,7 @@ export const metadata: Metadata = {
     openGraph: {
         type: "website",
         locale: "pt_BR",
-        url: "https://borges-silva-locacoesgestaodeimoveis.com.br",
+        url: "https://borges-silva-locacoes.vercel.app",
         siteName: "Borges Silva Locações",
         title: "Borges Silva Locações - Gestão Inteligente de Imóveis",
         description: "Simplifique a administração dos seus aluguéis com o Borges Silva Locações.",
@@ -68,7 +68,7 @@ export const metadata: Metadata = {
         card: "summary_large_image",
         title: "Borges Silva Locações - Gestão Inteligente de Imóveis",
         description: "Simplifique a administração dos seus aluguéis com o Borges Silva Locações.",
-        creator: "@renilson",
+        creator: "@borgessilvalocacoes",
         images: ["/og-image.png"],
     },
     robots: {
@@ -99,10 +99,10 @@ export default function RootLayout({
                             "@context": "https://schema.org",
                             "@type": "Organization",
                             "name": "Borges Silva Locações",
-                            "url": "https://borges-silva-locacoesgestaodeimoveis.com.br",
-                            "logo": "https://borges-silva-locacoesgestaodeimoveis.com.br/logo.png",
+                            "url": "https://borges-silva-locacoes.vercel.app",
+                            "logo": "https://borges-silva-locacoes.vercel.app/logo.png",
                             "sameAs": [
-                                "https://www.instagram.com/borges-silva-locacoesgestaodeimoveis",
+                                "https://borges-silva-locacoes.vercel.app",
                             ],
                             "description": "Plataforma completa para gestão inteligente de aluguéis e imóveis.",
                         }),
@@ -115,10 +115,10 @@ export default function RootLayout({
                             "@context": "https://schema.org",
                             "@type": "WebSite",
                             "name": "Borges Silva Locações",
-                            "url": "https://borges-silva-locacoesgestaodeimoveis.com.br",
+                            "url": "https://borges-silva-locacoes.vercel.app",
                             "potentialAction": {
                                 "@type": "SearchAction",
-                                "target": "https://borges-silva-locacoesgestaodeimoveis.com.br/catalogo/search?q={search_term_string}",
+                                "target": "https://borges-silva-locacoes.vercel.app/dashboard?q={search_term_string}",
                                 "query-input": "required name=search_term_string",
                             },
                         }),
