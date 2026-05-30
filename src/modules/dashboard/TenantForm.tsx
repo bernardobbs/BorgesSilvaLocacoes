@@ -1,90 +1,54 @@
+// Based on Lugo — Copyright (c) 2024 Renilson Medeiros — MIT License
 "use client";
-
-// src/modules/dashboard/TenantForm.tsx
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter, useParams, usePathname } from "next/navigation";
-
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { DatePicker } from "@/components/ui/date-picker";
-import {
-  ArrowLeft,
-  Upload,
-  X,
-  User,
-  Calendar,
-  FileText,
-  Building2,
-  Loader2
-} from "lucide-react";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { MaskedInput } from "@/components/dashboard/MaskedInput";
 import { CurrencyInput } from "@/components/dashboard/CurrencyInput";
 import { useFormFormatting } from "@/lib/hooks/useFormFormatting";
+import { ArrowLeft, Upload, X, User, Calendar, FileText, Building2, Loader2, Shield } from "lucide-react";
 
 interface TenantFormData {
-  name: string;
-  cpf: string;
-  phone: string;
-  email: string;
-  rentDay: string;
-  startDate: Date | undefined;
-  endDate: Date | undefined;
-  rentValue: string;
-  rg: string;
-  observations: string;
+  name: string; cpf: string; rg: string; phone: string; email: string;
+  rentDay: string; startDate: Date | undefined; endDate: Date | undefined;
+  rentValue: string; observations: string;
+  multaPercentual: string; jurosPercentual: string; correcaoMonetaria: string;
+  garantia: string; numeroContrato: string;
 }
 
-const initialFormData: TenantFormData = {
-  name: "",
-  cpf: "",
-  phone: "",
-  email: "",
-  rentDay: "10",
-  startDate: undefined,
-  endDate: undefined,
-  rentValue: "",
-  rg: "",
-  observations: "",
+const initial: TenantFormData = {
+  name: "", cpf: "", rg: "", phone: "", email: "",
+  rentDay: "10", startDate: undefined, endDate: undefined,
+  rentValue: "", observations: "",
+  multaPercentual: "10", jurosPercentual: "1", correcaoMonetaria: "igpm",
+  garantia: "nenhuma", numeroContrato: "",
 };
 
-interface PropertyData {
-  id: string;
-  titulo: string;
-  endereco_rua: string;
-  endereco_numero: string;
-  valor_aluguel: number;
-}
+interface PropertyData { id: string; titulo: string; endereco_rua: string; endereco_numero: string; valor_aluguel: number; }
 
 export default function TenantForm() {
   const router = useRouter();
   const params = useParams();
   const pathname = usePathname();
   const id = params?.id as string;
-  const { formatarCPF, formatarTelefone, formatarMoeda, parseMoeda } = useFormFormatting();
-
-  // Determinar o modo baseado na URL
+  const { formatarCPF, formatarTelefone, parseMoeda } = useFormFormatting();
   const isEditMode = pathname?.includes("/editar");
   const isRegistrationMode = pathname?.includes("/inquilino") && !isEditMode;
 
-  const [formData, setFormData] = useState<TenantFormData>(initialFormData);
+  const [formData, setFormData] = useState<TenantFormData>(initial);
   const [property, setProperty] = useState<PropertyData | null>(null);
-  const [tenantId, _setTenantId] = useState<string | null>(isEditMode ? id : null);
+  const [tenantId] = useState<string | null>(isEditMode ? id : null);
   const [propertyId, setPropertyId] = useState<string | null>(isRegistrationMode ? id : null);
-
   const [contractPhotos, setContractPhotos] = useState<File[]>([]);
   const [contractPreviews, setContractPreviews] = useState<string[]>([]);
   const [existingContractPhotos, setExistingContractPhotos] = useState<string[]>([]);
@@ -93,482 +57,355 @@ export default function TenantForm() {
   const { user } = useAuth();
 
   useEffect(() => {
-    if (isEditMode && id) {
-      loadTenantData(id);
-    } else if (isRegistrationMode && id) {
-      loadPropertyDetails(id);
-    }
+    if (isEditMode && id) loadTenantData(id);
+    else if (isRegistrationMode && id) loadPropertyDetails(id);
   }, [id, isEditMode, isRegistrationMode]);
+
+  const set = (field: keyof TenantFormData, value: any) =>
+    setFormData(p => ({ ...p, [field]: value }));
 
   const loadTenantData = async (tid: string) => {
     try {
       setIsLoading(true);
       const { data, error } = await supabase
-        .from('inquilinos')
-        .select('*, imoveis(id, titulo, endereco_rua, endereco_numero, valor_aluguel)')
-        .eq('id', tid)
-        .single();
-
+        .from("inquilinos")
+        .select("*, imoveis(id, titulo, endereco_rua, endereco_numero, valor_aluguel)")
+        .eq("id", tid).single();
       if (error) throw error;
       if (data) {
         setFormData({
-          name: data.nome_completo,
-          cpf: formatarCPF(data.cpf),
-          phone: formatarTelefone(data.telefone),
-          email: data.email || "",
-          rentDay: data.dia_vencimento.toString(),
+          name: data.nome_completo, cpf: formatarCPF(data.cpf || ""),
+          rg: data.rg || "", phone: formatarTelefone(data.telefone),
+          email: data.email || "", rentDay: data.dia_vencimento.toString(),
           startDate: data.data_inicio ? new Date(data.data_inicio) : undefined,
           endDate: data.data_fim ? new Date(data.data_fim) : undefined,
-          rentValue: formatarMoeda((data.valor_aluguel * 100).toString()),
-          rg: data.rg || "",
+          rentValue: data.valor_aluguel.toLocaleString("pt-BR", { minimumFractionDigits: 2 }),
           observations: data.observacoes || "",
+          multaPercentual: data.multa_percentual?.toString() || "10",
+          jurosPercentual: data.juros_percentual?.toString() || "1",
+          correcaoMonetaria: data.correcao_monetaria || "igpm",
+          garantia: data.garantia || "nenhuma",
+          numeroContrato: data.numero_contrato || "",
         });
-
-        if (data.imoveis) {
-          setProperty(Array.isArray(data.imoveis) ? data.imoveis[0] : data.imoveis);
-          setPropertyId(data.imovel_id);
-        }
-        
-        if (data.fotos_contrato) {
-          setExistingContractPhotos(data.fotos_contrato);
-          setContractPreviews(data.fotos_contrato);
-        }
+        setExistingContractPhotos(data.fotos_contrato || []);
+        setPropertyId(data.imovel_id);
+        if (data.imoveis) setProperty(Array.isArray(data.imoveis) ? data.imoveis[0] : data.imoveis);
       }
-    } catch (error) {
-      console.error('Erro ao carregar dados do inquilino:', error);
-      toast.error('Erro ao carregar dados do inquilino');
-    } finally {
-      setIsLoading(false);
-    }
+    } catch { toast.error("Erro ao carregar dados"); }
+    finally { setIsLoading(false); }
   };
 
   const loadPropertyDetails = async (pid: string) => {
     try {
       setIsLoading(true);
       const { data, error } = await supabase
-        .from('imoveis')
-        .select('id, titulo, endereco_rua, endereco_numero, valor_aluguel')
-        .eq('id', pid)
-        .single();
-
+        .from("imoveis").select("id, titulo, endereco_rua, endereco_numero, valor_aluguel")
+        .eq("id", pid).single();
       if (error) throw error;
       if (data) {
         setProperty(data);
-        setPropertyId(data.id);
-        // Pre-preencher o valor do aluguel se estiver disponível
-        setFormData(prev => ({
-          ...prev,
-          rentValue: formatarMoeda((data.valor_aluguel * 100).toString())
-        }));
+        setFormData(p => ({ ...p, rentValue: data.valor_aluguel.toLocaleString("pt-BR", { minimumFractionDigits: 2 }) }));
       }
-    } catch (error) {
-      console.error('Erro ao carregar detalhes do imóvel:', error);
-      toast.error('Erro ao carregar detalhes do imóvel');
-    } finally {
-      setIsLoading(false);
-    }
+    } catch { toast.error("Erro ao carregar imóvel"); }
+    finally { setIsLoading(false); }
   };
 
-  const handleInputChange = (field: keyof TenantFormData, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    setContractPhotos(p => [...p, ...files]);
+    files.forEach(f => {
+      const reader = new FileReader();
+      reader.onloadend = () => setContractPreviews(p => [...p, reader.result as string]);
+      reader.readAsDataURL(f);
+    });
   };
 
-  const handleContractUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (files) {
-      const newPhotos = Array.from(files);
-      setContractPhotos(prev => [...prev, ...newPhotos]);
-
-      newPhotos.forEach(file => {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          setContractPreviews(prev => [...prev, reader.result as string]);
-        };
-        reader.readAsDataURL(file);
-      });
-    }
+  const removeNewPhoto = (i: number) => {
+    setContractPhotos(p => p.filter((_, j) => j !== i));
+    setContractPreviews(p => p.filter((_, j) => j !== i));
   };
 
-  const removeContractPhoto = (index: number) => {
-    // Se for uma foto nova
-    if (index < contractPhotos.length) {
-      setContractPhotos(prev => prev.filter((_, i) => i !== index));
-      setContractPreviews(prev => prev.filter((_, i) => i !== index));
-    } else {
-      // Se for uma foto existente
-      const existingIndex = index - contractPhotos.length;
-      setExistingContractPhotos(prev => prev.filter((_, i) => i !== existingIndex));
-      setContractPreviews(prev => prev.filter((_, i) => i !== index));
-    }
-  };
+  const removeExistingPhoto = (url: string) =>
+    setExistingContractPhotos(p => p.filter(u => u !== url));
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!propertyId && !isEditMode) {
-      toast.error("Imóvel não identificado.");
-      return;
-    }
-
-    setIsSubmitting(true);
-
-    const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error('TIMEOUT_EXCEEDED')), 20000)
-    );
+    if (!formData.name.trim()) { toast.error("Nome obrigatório"); return; }
+    if (!formData.phone.trim()) { toast.error("Telefone obrigatório"); return; }
+    if (!formData.startDate) { toast.error("Data de início obrigatória"); return; }
+    if (!formData.rentValue) { toast.error("Valor do aluguel obrigatório"); return; }
 
     try {
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      if (sessionError || !session) {
-        throw new Error('SESSION_EXPIRED');
-      }
+      setIsSubmitting(true);
+      const { data: { session }, error: se } = await supabase.auth.getSession();
+      if (se || !session) { toast.error("Sessão expirada. Faça login novamente."); return; }
 
-      const saveAction = async () => {
-        const rentAmount = parseMoeda(formData.rentValue);
-        const tenantData = {
-          nome_completo: formData.name,
-          cpf: formData.cpf.replace(/\D/g, ""),
-          telefone: formData.phone.replace(/\D/g, ""),
-          email: formData.email,
-          dia_vencimento: parseInt(formData.rentDay),
-          data_inicio: formData.startDate ? new Date(formData.startDate.getTime() - (formData.startDate.getTimezoneOffset() * 60000)).toISOString().split('T')[0] : null,
-          data_fim: formData.endDate ? new Date(formData.endDate.getTime() - (formData.endDate.getTimezoneOffset() * 60000)).toISOString().split('T')[0] : null,
-          valor_aluguel: rentAmount,
-          rg: formData.rg,
-          observacoes: formData.observations,
-          status: 'ativo',
-          fotos_contrato: [] as string[]
-        };
-
-        // Upload de fotos do contrato
-        const uploadedContractUrls: string[] = [];
-        if (user && propertyId) {
-          for (const photo of contractPhotos) {
-            const fileExt = photo.name.split('.').pop();
-            const fileName = `${user.id}/${propertyId}/contracts/${Date.now()}-${Math.random()}.${fileExt}`;
-
-            const { error: uploadError } = await supabase.storage
-              .from('imoveis-fotos')
-              .upload(fileName, photo);
-
-            if (uploadError) throw uploadError;
-
-            const { data: { publicUrl } } = supabase.storage
-              .from('imoveis-fotos')
-              .getPublicUrl(fileName);
-
-            uploadedContractUrls.push(publicUrl);
-          }
-        }
-
-        tenantData.fotos_contrato = [...existingContractPhotos, ...uploadedContractUrls];
-
-        if (isEditMode && tenantId) {
-          const { error: updateError } = await supabase
-            .from('inquilinos')
-            .update(tenantData)
-            .eq('id', tenantId);
-
-          if (updateError) throw updateError;
-
-          toast.success("Inquilino atualizado com sucesso!");
-        } else {
-          const { data: _tenant, error: tenantError } = await supabase
-            .from('inquilinos')
-            .insert({
-              ...tenantData,
-              imovel_id: propertyId,
-            })
-            .select()
-            .single();
-
-          if (tenantError) throw tenantError;
-
-          const { error: propertyError } = await supabase
-            .from('imoveis')
-            .update({ status: 'alugado' })
-            .eq('id', propertyId);
-
-          if (propertyError) throw propertyError;
-
-          toast.success("Inquilino cadastrado com sucesso!", {
-            description: "O inquilino foi vinculado ao imóvel.",
-          });
-        }
+      const rentAmount = parseMoeda(formData.rentValue);
+      const tenantData: any = {
+        nome_completo: formData.name.trim(),
+        cpf: formData.cpf.replace(/\D/g, ""),
+        rg: formData.rg,
+        telefone: formData.phone.replace(/\D/g, ""),
+        email: formData.email || null,
+        dia_vencimento: parseInt(formData.rentDay),
+        data_inicio: formData.startDate ? new Date(formData.startDate.getTime() - formData.startDate.getTimezoneOffset() * 60000).toISOString().split("T")[0] : null,
+        data_fim: formData.endDate ? new Date(formData.endDate.getTime() - formData.endDate.getTimezoneOffset() * 60000).toISOString().split("T")[0] : null,
+        valor_aluguel: rentAmount,
+        observacoes: formData.observations || null,
+        multa_percentual: parseFloat(formData.multaPercentual) || 10,
+        juros_percentual: parseFloat(formData.jurosPercentual) || 1,
+        correcao_monetaria: formData.correcaoMonetaria,
+        garantia: formData.garantia,
+        numero_contrato: formData.numeroContrato || null,
+        status: "ativo",
+        fotos_contrato: [] as string[],
       };
 
-      await Promise.race([saveAction(), timeoutPromise]);
-      router.push("/dashboard/inquilinos");
-    } catch (error: any) {
-      console.error('Erro ao salvar inquilino:', error);
-      
-      if (error.message === 'TIMEOUT_EXCEEDED') {
-        toast.error('A conexão está lenta e o tempo limite foi atingido.', {
-          description: 'Verifique sua internet ou tente novamente.'
-        });
-      } else if (error.message === 'SESSION_EXPIRED') {
-        toast.error('Sua sessão expirou por inatividade.', {
-          description: 'Por favor, recarregue a página ou faça login novamente.'
-        });
-      } else {
-        toast.error('Erro ao salvar inquilino. Tente novamente.');
+      // Upload fotos de contrato
+      const uploadedUrls: string[] = [];
+      if (user && propertyId) {
+        for (const photo of contractPhotos) {
+          const ext = photo.name.split(".").pop();
+          const fileName = `${user.id}/${propertyId}/contracts/${Date.now()}-${Math.random()}.${ext}`;
+          const { error: ue } = await supabase.storage.from("imoveis-fotos").upload(fileName, photo);
+          if (ue) throw ue;
+          const { data: { publicUrl } } = supabase.storage.from("imoveis-fotos").getPublicUrl(fileName);
+          uploadedUrls.push(publicUrl);
+        }
       }
+      tenantData.fotos_contrato = [...existingContractPhotos, ...uploadedUrls];
+
+      if (isEditMode && tenantId) {
+        const { error } = await supabase.from("inquilinos").update(tenantData).eq("id", tenantId);
+        if (error) throw error;
+        toast.success("Inquilino atualizado com sucesso!");
+      } else {
+        const { error: te } = await supabase.from("inquilinos").insert({ ...tenantData, imovel_id: propertyId }).select().single();
+        if (te) throw te;
+        await supabase.from("imoveis").update({ status: "alugado" }).eq("id", propertyId);
+        toast.success("Inquilino cadastrado com sucesso!");
+      }
+
+      router.push("/dashboard/inquilinos");
+    } catch (err: any) {
+      console.error(err);
+      toast.error("Erro ao salvar", { description: err?.message || "Verifique os dados e tente novamente." });
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const days = Array.from({ length: 31 }, (_, i) => (i + 1).toString().padStart(2, '0'));
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[calc(100vh-4rem)]">
-        <div className="text-center">
-          <Loader2 className="h-12 w-12 animate-spin text-tertiary mx-auto mb-4" />
-          <p className="text-muted-foreground">Carregando dados...</p>
-        </div>
-      </div>
-    );
-  }
+  if (isLoading) return (
+    <div className="flex items-center justify-center h-64">
+      <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+    </div>
+  );
 
   return (
-    <>
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Header */}
-        <div className="flex items-center gap-4">
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="shrink-0"
-            onClick={() => router.back()}
-            aria-label="Voltar"
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div>
-            <h1 className="font-display text-2xl font-bold sm:text-3xl">
-              {isEditMode ? "Detalhes do Inquilino" : "Cadastrar Inquilino"}
-            </h1>
-            <p className="text-muted-foreground">
-              {isEditMode ? "Visualize ou edite os dados do inquilino" : "Preencha os dados do inquilino"}
-            </p>
-          </div>
-        </div>
+    <div className="max-w-2xl mx-auto p-6 space-y-6">
+      <div>
+        <Link href="/dashboard/inquilinos" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-4">
+          <ArrowLeft className="h-4 w-4" />Voltar
+        </Link>
+        <h1 className="text-2xl font-semibold">{isEditMode ? "Editar inquilino" : "Novo inquilino"}</h1>
+        {property && (
+          <p className="text-sm text-muted-foreground mt-1 flex items-center gap-1.5">
+            <Building2 className="h-4 w-4" />
+            {property.titulo} — {property.endereco_rua}, {property.endereco_numero}
+          </p>
+        )}
+      </div>
 
-        {/* Imóvel Selecionado */}
-        <Card className="animate-fade-in border-blue-100 bg-tertiary">
+      <form onSubmit={handleSubmit} className="space-y-5">
+
+        {/* Dados pessoais */}
+        <Card>
           <CardHeader className="pb-3">
-            <div className="flex items-center gap-2">
-              <Building2 className="h-5 w-5 text-blue-200" aria-hidden="true" />
-              <CardTitle className="text-lg text-white">Imóvel</CardTitle>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {property ? (
-              <div className="space-y-1">
-                <p className="font-medium text-blue-50">{property.titulo || `${property.endereco_rua}, ${property.endereco_numero}`}</p>
-                <p className="text-sm text-blue-200">{property.endereco_rua}, {property.endereco_numero}</p>
-              </div>
-            ) : (
-              <p className="text-sm text-destructive">Imóvel não encontrado. Certifique-se de que o ID é válido.</p>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Dados Pessoais */}
-        <Card className="animate-fade-in" style={{ animationDelay: "50ms" }}>
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <User className="h-5 w-5 text-tertiary" aria-hidden="true" />
-              <CardTitle>Dados Pessoais</CardTitle>
-            </div>
-            <CardDescription>Informações do inquilino</CardDescription>
+            <CardTitle className="text-base flex items-center gap-2"><User className="h-4 w-4" />Dados do inquilino</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2 sm:col-span-2">
-                <Label htmlFor="name">Nome completo</Label>
-                <Input
-                  id="name"
-                  placeholder="Nome do inquilino"
-                  value={formData.name}
-                  onChange={(e) => handleInputChange("name", e.target.value)}
-                  required
-                />
+            <div className="space-y-1.5">
+              <Label>Nome completo *</Label>
+              <Input value={formData.name} onChange={e => set("name", e.target.value)} placeholder="Nome do inquilino" />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label>CPF</Label>
+                <MaskedInput mask="cpf" value={formData.cpf} onChange={v => set("cpf", v)} placeholder="000.000.000-00" />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="cpf">CPF</Label>
-                <MaskedInput
-                  id="cpf"
-                  mask="cpf"
-                  placeholder="000.000.000-00"
-                  value={formData.cpf}
-                  onValueChange={(val) => handleInputChange("cpf", val)}
-                  required
-                />
+              <div className="space-y-1.5">
+                <Label>RG</Label>
+                <Input value={formData.rg} onChange={e => set("rg", e.target.value)} placeholder="00.000.000-0" />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="phone">Telefone</Label>
-                <MaskedInput
-                  id="phone"
-                  mask="phone"
-                  placeholder="(00) 00000-0000"
-                  value={formData.phone}
-                  onValueChange={(val) => handleInputChange("phone", val)}
-                />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label>Telefone *</Label>
+                <MaskedInput mask="phone" value={formData.phone} onChange={v => set("phone", v)} placeholder="(00) 00000-0000" />
               </div>
-              <div className="space-y-2 sm:col-span-2">
-                <Label htmlFor="email">E-mail</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="email@exemplo.com"
-                  value={formData.email}
-                  onChange={(e) => handleInputChange("email", e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="rg">RG (Opcional)</Label>
-                <Input
-                  id="rg"
-                  placeholder="00.000.000-0"
-                  value={formData.rg}
-                  onChange={(e) => handleInputChange("rg", e.target.value)}
-                />
+              <div className="space-y-1.5">
+                <Label>E-mail</Label>
+                <Input type="email" value={formData.email} onChange={e => set("email", e.target.value)} placeholder="email@exemplo.com" />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Dados do Contrato */}
-        <Card className="animate-fade-in" style={{ animationDelay: "100ms" }}>
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <Calendar className="h-5 w-5 text-tertiary" aria-hidden="true" />
-              <CardTitle>Dados do Contrato</CardTitle>
-            </div>
-            <CardDescription>Período de locação e vencimento</CardDescription>
+        {/* Dados da locação */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2"><Calendar className="h-4 w-4" />Dados da locação</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <div className="space-y-2">
-                <Label htmlFor="rentValue">Valor do Aluguel</Label>
-                <CurrencyInput
-                  id="rentValue"
-                  value={formData.rentValue}
-                  onValueChange={(val) => handleInputChange("rentValue", val)}
-                  required
-                />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label>Valor do aluguel *</Label>
+                <CurrencyInput value={formData.rentValue} onChange={v => set("rentValue", v)} placeholder="R$ 0,00" />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="rentDay">Dia do pagamento</Label>
-                <Select
-                  value={formData.rentDay}
-                  onValueChange={(value) => handleInputChange("rentDay", value)}
-                >
-                  <SelectTrigger id="rentDay">
-                    <SelectValue placeholder="Selecione o dia" />
-                  </SelectTrigger>
+              <div className="space-y-1.5">
+                <Label>Dia do vencimento *</Label>
+                <Select value={formData.rentDay} onValueChange={v => set("rentDay", v)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {days.map(day => (
-                      <SelectItem key={day} value={parseInt(day).toString()}>
-                        Dia {day}
-                      </SelectItem>
+                    {[1,5,10,15,20,25,30].map(d => (
+                      <SelectItem key={d} value={d.toString()}>Dia {d}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="startDate">Data de entrada</Label>
-                <DatePicker
-                  date={formData.startDate}
-                  onSelect={(date) => setFormData(prev => ({ ...prev, startDate: date }))}
-                  placeholder="Selecione a data de entrada"
-                />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label>Data de início *</Label>
+                <DatePicker date={formData.startDate} onDateChange={d => set("startDate", d)} />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="endDate">Data de saída</Label>
-                <DatePicker
-                  date={formData.endDate}
-                  onSelect={(date) => setFormData(prev => ({ ...prev, endDate: date }))}
-                  placeholder="Selecione a data de saída"
-                />
-              </div>
-              <div className="space-y-2 sm:col-span-2 lg:col-span-4">
-                <Label htmlFor="observations">Observações</Label>
-                <Textarea
-                  id="observations"
-                  placeholder="Observações adicionais sobre o contrato ou inquilino"
-                  value={formData.observations}
-                  onChange={(e) => handleInputChange("observations", e.target.value)}
-                  rows={4}
-                />
+              <div className="space-y-1.5">
+                <Label>Data de término <span className="text-muted-foreground font-normal">(opcional)</span></Label>
+                <DatePicker date={formData.endDate} onDateChange={d => set("endDate", d)} />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Contrato */}
-        <Card className="animate-fade-in" style={{ animationDelay: "200ms" }}>
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <FileText className="h-5 w-5 text-tertiary" aria-hidden="true" />
-              <CardTitle>Contrato Assinado</CardTitle>
-            </div>
-            <CardDescription>Upload opcional de fotos do contrato assinado</CardDescription>
+        {/* Encargos por atraso */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2"><FileText className="h-4 w-4" />Encargos por atraso</CardTitle>
+            <CardDescription>Valores aplicados automaticamente nos recibos em atraso</CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="flex flex-wrap gap-3">
-              {contractPreviews.map((preview, index) => (
-                <div key={index} className="relative group">
-                  <img
-                    src={preview}
-                    alt={`Contrato ${index + 1}`}
-                    className="h-32 w-32 rounded-lg object-cover border border-border"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => removeContractPhoto(index)}
-                    className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-destructive text-destructive-foreground opacity-100 transition-opacity group-hover:opacity-100"
-                    aria-label="Remover foto"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-1.5">
+                <Label>Multa por atraso *</Label>
+                <div className="relative">
+                  <Input value={formData.multaPercentual} onChange={e => set("multaPercentual", e.target.value.replace(/[^0-9.]/g, ""))} placeholder="10" className="pr-7" />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground font-mono">%</span>
                 </div>
-              ))}
-              <label
-                htmlFor="contract"
-                className="flex h-32 w-32 cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-border bg-accent/50 text-muted-foreground transition-colors hover:border-primary hover:text-primary"
-              >
-                <Upload className="h-8 w-8" aria-hidden="true" />
-                <span className="mt-2 text-xs text-center px-2">Adicionar foto do contrato</span>
-                <input
-                  id="contract"
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  onChange={handleContractUpload}
-                  className="sr-only"
-                />
-              </label>
+                <p className="text-xs text-muted-foreground">Sobre o valor do aluguel</p>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Juros por atraso *</Label>
+                <div className="relative">
+                  <Input value={formData.jurosPercentual} onChange={e => set("jurosPercentual", e.target.value.replace(/[^0-9.]/g, ""))} placeholder="1" className="pr-14" />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground font-mono">%/mês</span>
+                </div>
+                <p className="text-xs text-muted-foreground">Pro rata die</p>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Correção monetária</Label>
+                <Select value={formData.correcaoMonetaria} onValueChange={v => set("correcaoMonetaria", v)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="igpm">IGP-M</SelectItem>
+                    <SelectItem value="ipca">IPCA</SelectItem>
+                    <SelectItem value="inpc">INPC</SelectItem>
+                    <SelectItem value="manual">Manual</SelectItem>
+                    <SelectItem value="nenhuma">Nenhuma</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-            <p className="mt-3 text-sm text-muted-foreground">
-              Este campo é opcional. Você pode adicionar fotos do contrato assinado posteriormente.
-            </p>
           </CardContent>
         </Card>
 
-        {/* Actions */}
-        <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+        {/* Garantia locatícia */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2"><Shield className="h-4 w-4" />Garantia locatícia</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-1.5">
+              <Label>Tipo de garantia</Label>
+              <Select value={formData.garantia} onValueChange={v => set("garantia", v)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="nenhuma">Sem garantia</SelectItem>
+                  <SelectItem value="caucao">Caução (depósito caução)</SelectItem>
+                  <SelectItem value="pagamento_adiantado">Pagamento adiantado</SelectItem>
+                  <SelectItem value="fiador">Fiador</SelectItem>
+                  <SelectItem value="seguro_fianca">Seguro fiança</SelectItem>
+                  <SelectItem value="titulo_capitalizacao">Título de capitalização</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Contrato e observações */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2"><FileText className="h-4 w-4" />Contrato</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-1.5">
+              <Label>Número do contrato <span className="text-muted-foreground font-normal">(opcional)</span></Label>
+              <Input value={formData.numeroContrato} onChange={e => set("numeroContrato", e.target.value)} placeholder="Ex: CT-2025-001" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Observações</Label>
+              <Textarea value={formData.observations} onChange={e => set("observations", e.target.value)} placeholder="Observações sobre o inquilino ou a locação..." className="min-h-[80px]" />
+            </div>
+
+            {/* Fotos do contrato */}
+            <div className="space-y-2">
+              <Label>Fotos do contrato assinado <span className="text-muted-foreground font-normal">(opcional)</span></Label>
+              <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-border rounded-lg cursor-pointer hover:bg-muted/50 transition-colors">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Upload className="h-4 w-4" />
+                  <span>Clique para anexar · JPG, PNG ou PDF · máx. 10MB</span>
+                </div>
+                <input type="file" multiple accept="image/*,.pdf" onChange={handlePhotoChange} className="hidden" />
+              </label>
+              {(existingContractPhotos.length > 0 || contractPreviews.length > 0) && (
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {existingContractPhotos.map((url, i) => (
+                    <div key={i} className="relative">
+                      <img src={url} alt="" className="h-16 w-16 object-cover rounded border" />
+                      <button type="button" onClick={() => removeExistingPhoto(url)} className="absolute -top-1 -right-1 bg-destructive text-white rounded-full w-4 h-4 flex items-center justify-center text-xs"><X className="h-2.5 w-2.5" /></button>
+                    </div>
+                  ))}
+                  {contractPreviews.map((src, i) => (
+                    <div key={i} className="relative">
+                      <img src={src} alt="" className="h-16 w-16 object-cover rounded border" />
+                      <button type="button" onClick={() => removeNewPhoto(i)} className="absolute -top-1 -right-1 bg-destructive text-white rounded-full w-4 h-4 flex items-center justify-center text-xs"><X className="h-2.5 w-2.5" /></button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Ações */}
+        <div className="flex justify-end gap-3">
           <Link href="/dashboard/inquilinos">
-            <Button type="button" variant="outline" className="w-full sm:w-auto">
-              Cancelar
-            </Button>
+            <Button type="button" variant="outline">Cancelar</Button>
           </Link>
-          <Button type="submit" disabled={isSubmitting} className="w-full bg-tertiary hover:bg-tertiary/90 sm:w-auto">
-            {isSubmitting ? "Salvando..." : isEditMode ? "Salvar alterações" : "Cadastrar inquilino"}
+          <Button type="submit" disabled={isSubmitting}>
+            {isSubmitting ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Salvando...</> : isEditMode ? "Salvar alterações" : "Cadastrar inquilino"}
           </Button>
         </div>
       </form>
-    </>
+    </div>
   );
 }
