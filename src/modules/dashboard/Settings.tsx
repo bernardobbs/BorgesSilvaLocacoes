@@ -374,3 +374,166 @@ export default function Settings({ initialProfile }: SettingsProps) {
     </>
   );
 }
+
+// =====================================================
+// GERENCIAMENTO DE MEMBROS DA FAMÍLIA
+// =====================================================
+export function MembrosSection() {
+  const { user } = useAuth();
+  const [membros, setMembros] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [novoEmail, setNovoEmail] = useState("");
+  const [novoNome, setNovoNome] = useState("");
+  const [novaSenha, setNovaSenha] = useState("");
+  const [novoRole, setNovoRole] = useState("operador");
+  const [salvando, setSalvando] = useState(false);
+  const [showForm, setShowForm] = useState(false);
+
+  useEffect(() => { carregarMembros(); }, []);
+
+  async function carregarMembros() {
+    try {
+      setLoading(true);
+      const { data } = await supabase.from("profiles").select("id, nome_completo, email, role").order("nome_completo");
+      setMembros(data || []);
+    } finally { setLoading(false); }
+  }
+
+  async function convidarMembro() {
+    if (!novoEmail || !novoNome || !novaSenha) { toast.error("Preencha todos os campos"); return; }
+    try {
+      setSalvando(true);
+      const res = await fetch("/api/membros/criar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: novoEmail, nome_completo: novoNome, password: novaSenha, role: novoRole }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Erro ao criar membro");
+      toast.success("Membro adicionado!", { description: `${novoNome} já pode fazer login.` });
+      setNovoEmail(""); setNovoNome(""); setNovaSenha(""); setNovoRole("operador");
+      setShowForm(false);
+      carregarMembros();
+    } catch (e: any) {
+      toast.error("Erro", { description: e.message });
+    } finally { setSalvando(false); }
+  }
+
+  async function alterarRole(id: string, role: string) {
+    await supabase.from("profiles").update({ role }).eq("id", id);
+    toast.success("Perfil atualizado");
+    carregarMembros();
+  }
+
+  async function removerMembro(id: string) {
+    if (id === user?.id) { toast.error("Você não pode remover sua própria conta"); return; }
+    const res = await fetch("/api/membros/remover", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId: id }),
+    });
+    if (res.ok) { toast.success("Membro removido"); carregarMembros(); }
+    else toast.error("Erro ao remover membro");
+  }
+
+  const roleLabel = (r: string) => r === "admin" ? "Administrador" : "Operador";
+  const roleBadge = (r: string) => r === "admin"
+    ? "bg-blue-50 text-blue-700 border-blue-200"
+    : "bg-gray-50 text-gray-600 border-gray-200";
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <User className="h-4 w-4" /> Membros da família
+            </CardTitle>
+            <CardDescription>Gerencie quem tem acesso ao sistema</CardDescription>
+          </div>
+          <Button size="sm" onClick={() => setShowForm(!showForm)}>
+            {showForm ? "Cancelar" : "+ Adicionar membro"}
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+
+        {/* Formulário novo membro */}
+        {showForm && (
+          <div className="border rounded-lg p-4 bg-muted/30 space-y-3">
+            <p className="text-sm font-medium">Novo membro</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Nome completo</Label>
+                <Input value={novoNome} onChange={e => setNovoNome(e.target.value)} placeholder="Nome do membro" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">E-mail</Label>
+                <Input type="email" value={novoEmail} onChange={e => setNovoEmail(e.target.value)} placeholder="email@exemplo.com" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Senha inicial</Label>
+                <Input type="password" value={novaSenha} onChange={e => setNovaSenha(e.target.value)} placeholder="Mínimo 6 caracteres" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Perfil de acesso</Label>
+                <select value={novoRole} onChange={e => setNovoRole(e.target.value)}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+                  <option value="operador">Operador — acesso ao dia a dia</option>
+                  <option value="admin">Administrador — acesso total</option>
+                </select>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 pt-1">
+              <Button variant="outline" onClick={() => setShowForm(false)}>Cancelar</Button>
+              <Button onClick={convidarMembro} disabled={salvando}>
+                {salvando ? "Criando..." : "Criar acesso"}
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Lista de membros */}
+        {loading ? (
+          <div className="text-center py-6 text-sm text-muted-foreground">Carregando...</div>
+        ) : (
+          <div className="divide-y">
+            {membros.map(m => (
+              <div key={m.id} className="flex items-center justify-between py-3">
+                <div className="flex items-center gap-3">
+                  <div className="h-9 w-9 rounded-full bg-muted flex items-center justify-center text-sm font-medium text-muted-foreground">
+                    {m.nome_completo?.charAt(0)?.toUpperCase() || "?"}
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium">{m.nome_completo}</p>
+                    <p className="text-xs text-muted-foreground">{m.email}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <select
+                    value={m.role}
+                    onChange={e => alterarRole(m.id, e.target.value)}
+                    disabled={m.id === user?.id}
+                    className={`text-xs px-2 py-1 rounded border font-medium ${roleBadge(m.role)} disabled:opacity-50 disabled:cursor-default bg-transparent`}
+                  >
+                    <option value="operador">Operador</option>
+                    <option value="admin">Administrador</option>
+                  </select>
+                  {m.id !== user?.id && (
+                    <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive h-7 px-2 text-xs"
+                      onClick={() => removerMembro(m.id)}>
+                      Remover
+                    </Button>
+                  )}
+                  {m.id === user?.id && (
+                    <span className="text-xs text-muted-foreground px-2">você</span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}

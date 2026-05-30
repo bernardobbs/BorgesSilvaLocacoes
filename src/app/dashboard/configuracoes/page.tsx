@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import Settings from "@/modules/dashboard/Settings";
+import Settings, { MembrosSection } from "@/modules/dashboard/Settings";
 import { redirect } from "next/navigation";
 
 export default async function SettingsPage() {
@@ -18,5 +18,10 @@ export default async function SettingsPage() {
         .eq('id', session.user.id)
         .single();
 
-    return <Settings initialProfile={profile} />;
+    return (
+    <div className="space-y-6">
+      <Settings initialProfile={profile} />
+      {profile?.role === 'admin' && <MembrosSection />}
+    </div>
+  );
 }
