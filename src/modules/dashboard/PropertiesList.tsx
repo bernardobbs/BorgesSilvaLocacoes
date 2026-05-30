@@ -173,9 +173,7 @@ export default function PropertiesList({ initialData = [], initialLoading = true
 
   const handleShareCatalog = useCallback(() => {
     if (!user) return;
-    const url = `${window.location.origin}/catalogo/${user.id}`;
     navigator.clipboard.writeText(url);
-    toast.success("Link do catálogo copiado!", {
       description: "Compartilhe todos os seus imóveis disponíveis.",
     });
   }, [user]);
