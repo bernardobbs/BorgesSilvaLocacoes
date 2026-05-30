@@ -220,7 +220,7 @@ export async function POST(request: NextRequest) {
         doc.line(20, 270, 190, 270);
         const now = new Date();
         doc.text(
-            `Comprovante gerado automaticamente via plataforma Lugo (Alugue Fácil) em ${now.toLocaleDateString('pt-BR')} às ${now.toLocaleTimeString('pt-BR')}`,
+            `Comprovante gerado automaticamente via Borges Silva Locações em ${now.toLocaleDateString('pt-BR')} às ${now.toLocaleTimeString('pt-BR')}`,
             105,
             275,
             { align: 'center' }
