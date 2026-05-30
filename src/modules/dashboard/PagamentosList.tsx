@@ -45,9 +45,7 @@ function mesLabel(iso: string) {
 }
 function calcTotal(inq: Inquilino, c: Comprovante | undefined, mes: string) {
   if (c?.situation === "billed") return (c.valor||0) + (c.valor_multa||0) + (c.valor_juros||0);
-  const venc = c?.data_vencimento ? new Date(c.data_vencimento) : (() => {
-    const d = new Date(mes); d.setDate(inq.dia_vencimento); return d;
-  })();
+  const venc = vencimentoDoMes(inq, c, mes);
   const dias = Math.max(0, Math.floor((new Date().getTime() - venc.getTime()) / 86400000));
   if (dias <= 0) return inq.valor_aluguel;
   const multa = inq.valor_aluguel * (inq.multa_percentual / 100);
@@ -56,9 +54,7 @@ function calcTotal(inq: Inquilino, c: Comprovante | undefined, mes: string) {
 }
 function diasAtraso(inq: Inquilino, c: Comprovante | undefined, mes: string) {
   if (c?.situation === "billed") return 0;
-  const venc = c?.data_vencimento ? new Date(c.data_vencimento) : (() => {
-    const d = new Date(mes); d.setDate(inq.dia_vencimento); return d;
-  })();
+  const venc = vencimentoDoMes(inq, c, mes);
   return Math.max(0, Math.floor((new Date().getTime() - venc.getTime()) / 86400000));
 }
 
@@ -73,10 +69,43 @@ function formaLabel(f: string | null) {
   return f ? (m[f] || f) : "—";
 }
 
+function parseLocalMonth(iso: string) {
+  const [y, m] = iso.split("-").map(Number);
+  return new Date(y, m - 1, 1); // local time, not UTC
+}
+
+function vencimentoDoMes(inq: Inquilino, c: Comprovante | undefined, mes: string): Date {
+  if (c?.data_vencimento) {
+    const [y,m,d] = c.data_vencimento.split("-").map(Number);
+    return new Date(y, m-1, d);
+  }
+  const base = parseLocalMonth(mes);
+  base.setDate(inq.dia_vencimento);
+  return base;
+}
+
 function whatsappLink(inq: Inquilino, total: number, mes: string, dias: number) {
   const phone = inq.telefone.replace(/\D/g,"").replace(/^0/,"55");
   const p = phone.startsWith("55") ? phone : "55"+phone;
-  const msg = `Olá, *${inq.nome_completo}*! 👋\n\nIdentificamos que o aluguel de *${inq.imoveis?.titulo}* referente a *${mesLabel(mes)}* está em aberto.\n\n⏳ Dias em atraso: ${dias}\n💰 Valor atualizado: *${fmtBRL(total)}*\n_(aluguel + multa + juros pro rata)_\n\nPor favor, entre em contato para regularizar.\n\n*Borges Silva Locações*`;
+  const multa = dias > 0 ? inq.valor_aluguel * (inq.multa_percentual / 100) : 0;
+  const juros = dias > 0 ? inq.valor_aluguel * (inq.juros_percentual / 100 / 30) * dias : 0;
+  const linhasEncargo = dias > 0
+    ? `\n🔴 Multa (${inq.multa_percentual}%): *${fmtBRL(multa)}*\n🔴 Juros (${inq.juros_percentual}%/mês · ${dias} dias): *${fmtBRL(juros)}*`
+    : "";
+  const msg = [
+    `Olá, *${inq.nome_completo}*! 👋`,
+    ``,
+    `Informamos que o aluguel referente a *${mesLabel(mes)}* do imóvel *${inq.imoveis?.titulo}* está em aberto.`,
+    ``,
+    `📋 Detalhes:`,
+    `• Valor principal: *${fmtBRL(inq.valor_aluguel)}*` + linhasEncargo,
+    `• ${dias > 0 ? `⏳ Dias em atraso: *${dias}*` : `📅 Vencimento: dia ${inq.dia_vencimento}`}`,
+    `💰 Total a pagar: *${fmtBRL(total)}*`,
+    ``,
+    `Por favor, entre em contato para regularizar.`,
+    ``,
+    `*Borges Silva Locações*`,
+  ].join("\n");
   return `https://wa.me/${p}?text=${encodeURIComponent(msg)}`;
 }
 
@@ -123,8 +152,8 @@ export default function PagamentosList({ initialInquilinos, initialComprovantes,
   /* lançar parcela em aberto para o mês */
   const lancarEmAberto = async (inq: Inquilino, mes: string) => {
     try {
-      const venc = new Date(mes);
-      venc.setDate(inq.dia_vencimento);
+      const [vy, vm] = mes.split("-").map(Number);
+      const venc = new Date(vy, vm - 1, inq.dia_vencimento);
       const { error } = await supabase.from("comprovantes").insert({
         inquilino_id: inq.id, imovel_id: inq.imovel_id,
         tipo: "pagamento", mes_referencia: mes,
