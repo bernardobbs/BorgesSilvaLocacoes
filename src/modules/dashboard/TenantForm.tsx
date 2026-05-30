@@ -260,7 +260,7 @@ export default function TenantForm() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label>Valor do aluguel *</Label>
-                <CurrencyInput value={formData.rentValue} onChange={v => set("rentValue", v)} placeholder="R$ 0,00" />
+                <CurrencyInput value={formData.rentValue} onValueChange={v => set("rentValue", v)} placeholder="R$ 0,00" />
               </div>
               <div className="space-y-1.5">
                 <Label>Dia do vencimento *</Label>
