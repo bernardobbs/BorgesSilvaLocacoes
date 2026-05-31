@@ -24,6 +24,20 @@ interface TenantFormData {
   rentValue: string; observations: string;
   multaPercentual: string; jurosPercentual: string; correcaoMonetaria: string;
   garantia: string; numeroContrato: string;
+  // Fiador
+  fiadorNome: string; fiadorCpf: string; fiadorRg: string; fiadorTelefone: string;
+  fiadorEmail: string; fiadorProfissao: string; fiadorRenda: string;
+  fiadorEndereco: string; fiadorCidade: string; fiadorEstado: string; fiadorCep: string;
+  fiadorImovelProprio: boolean;
+  // Caução
+  caucaoValor: string; caucaoMeses: string; caucaoDataPagamento: string;
+  caucaoBanco: string; caucaoAgencia: string; caucaoConta: string;
+  // Pagamento adiantado
+  adiantadoMeses: string; adiantadoValor: string; adiantadoDataPagamento: string;
+  // Seguro fiança
+  seguroSeguradora: string; seguroApolice: string; seguroValor: string; seguroVencimento: string;
+  // Título capitalização
+  tituloEmpresa: string; tituloNumero: string; tituloValor: string; tituloVencimento: string;
 }
 
 const initial: TenantFormData = {
@@ -32,6 +46,20 @@ const initial: TenantFormData = {
   rentValue: "", observations: "",
   multaPercentual: "10", jurosPercentual: "1", correcaoMonetaria: "igpm",
   garantia: "nenhuma", numeroContrato: "",
+  // Fiador
+  fiadorNome: "", fiadorCpf: "", fiadorRg: "", fiadorTelefone: "",
+  fiadorEmail: "", fiadorProfissao: "", fiadorRenda: "",
+  fiadorEndereco: "", fiadorCidade: "", fiadorEstado: "", fiadorCep: "",
+  fiadorImovelProprio: false,
+  // Caução
+  caucaoValor: "", caucaoMeses: "3", caucaoDataPagamento: "",
+  caucaoBanco: "", caucaoAgencia: "", caucaoConta: "",
+  // Pagamento adiantado
+  adiantadoMeses: "1", adiantadoValor: "", adiantadoDataPagamento: "",
+  // Seguro fiança
+  seguroSeguradora: "", seguroApolice: "", seguroValor: "", seguroVencimento: "",
+  // Título capitalização
+  tituloEmpresa: "", tituloNumero: "", tituloValor: "", tituloVencimento: "",
 };
 
 interface PropertyData { id: string; titulo: string; endereco_rua: string; endereco_numero: string; valor_aluguel: number; }
@@ -159,6 +187,40 @@ export default function TenantForm() {
         numero_contrato: formData.numeroContrato || null,
         status: "ativo",
         fotos_contrato: [] as string[],
+        // Fiador
+        fiador_nome: formData.fiadorNome || null,
+        fiador_cpf: formData.fiadorCpf.replace(/\D/g,"") || null,
+        fiador_rg: formData.fiadorRg || null,
+        fiador_telefone: formData.fiadorTelefone.replace(/\D/g,"") || null,
+        fiador_email: formData.fiadorEmail || null,
+        fiador_profissao: formData.fiadorProfissao || null,
+        fiador_renda: formData.fiadorRenda ? parseMoeda(formData.fiadorRenda) : null,
+        fiador_endereco: formData.fiadorEndereco || null,
+        fiador_cidade: formData.fiadorCidade || null,
+        fiador_estado: formData.fiadorEstado || null,
+        fiador_cep: formData.fiadorCep || null,
+        fiador_imovel_proprio: formData.fiadorImovelProprio,
+        // Caução
+        caucao_valor: formData.caucaoValor ? parseMoeda(formData.caucaoValor) : null,
+        caucao_meses: formData.caucaoMeses ? parseInt(formData.caucaoMeses) : null,
+        caucao_data_pagamento: formData.caucaoDataPagamento || null,
+        caucao_banco: formData.caucaoBanco || null,
+        caucao_agencia: formData.caucaoAgencia || null,
+        caucao_conta: formData.caucaoConta || null,
+        // Pagamento adiantado
+        adiantado_meses: formData.adiantadoMeses ? parseInt(formData.adiantadoMeses) : null,
+        adiantado_valor: formData.adiantadoValor ? parseMoeda(formData.adiantadoValor) : null,
+        adiantado_data_pagamento: formData.adiantadoDataPagamento || null,
+        // Seguro fiança
+        seguro_seguradora: formData.seguroSeguradora || null,
+        seguro_apolice: formData.seguroApolice || null,
+        seguro_valor: formData.seguroValor ? parseMoeda(formData.seguroValor) : null,
+        seguro_vencimento: formData.seguroVencimento || null,
+        // Título capitalização
+        titulo_empresa: formData.tituloEmpresa || null,
+        titulo_numero: formData.tituloNumero || null,
+        titulo_valor: formData.tituloValor ? parseMoeda(formData.tituloValor) : null,
+        titulo_vencimento: formData.tituloVencimento || null,
       };
 
       // Upload fotos de contrato
@@ -340,7 +402,7 @@ export default function TenantForm() {
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="nenhuma">Sem garantia</SelectItem>
-                  <SelectItem value="caucao">Caução (depósito caução)</SelectItem>
+                  <SelectItem value="caucao">Caução — depósito em dinheiro</SelectItem>
                   <SelectItem value="pagamento_adiantado">Pagamento adiantado</SelectItem>
                   <SelectItem value="fiador">Fiador</SelectItem>
                   <SelectItem value="seguro_fianca">Seguro fiança</SelectItem>
@@ -348,6 +410,180 @@ export default function TenantForm() {
                 </SelectContent>
               </Select>
             </div>
+
+            {/* ── FIADOR ── */}
+            {formData.garantia === "fiador" && (
+              <div className="border rounded-lg p-4 space-y-4 bg-muted/30">
+                <p className="text-sm font-medium text-foreground">Dados do fiador</p>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5 col-span-2">
+                    <Label>Nome completo *</Label>
+                    <Input value={formData.fiadorNome} onChange={e => set("fiadorNome", e.target.value)} placeholder="Nome do fiador" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>CPF *</Label>
+                    <MaskedInput mask="cpf" value={formData.fiadorCpf} onValueChange={v => set("fiadorCpf", v)} placeholder="000.000.000-00" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>RG</Label>
+                    <Input value={formData.fiadorRg} onChange={e => set("fiadorRg", e.target.value)} placeholder="00.000.000-0" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Telefone *</Label>
+                    <MaskedInput mask="phone" value={formData.fiadorTelefone} onValueChange={v => set("fiadorTelefone", v)} placeholder="(00) 00000-0000" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>E-mail</Label>
+                    <Input type="email" value={formData.fiadorEmail} onChange={e => set("fiadorEmail", e.target.value)} placeholder="email@exemplo.com" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Profissão</Label>
+                    <Input value={formData.fiadorProfissao} onChange={e => set("fiadorProfissao", e.target.value)} placeholder="Ex: Comerciante" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Renda mensal (R$)</Label>
+                    <CurrencyInput value={formData.fiadorRenda} onValueChange={v => set("fiadorRenda", v)} placeholder="R$ 0,00" />
+                  </div>
+                  <div className="space-y-1.5 col-span-2">
+                    <Label>Endereço completo</Label>
+                    <Input value={formData.fiadorEndereco} onChange={e => set("fiadorEndereco", e.target.value)} placeholder="Rua, número, bairro" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Cidade</Label>
+                    <Input value={formData.fiadorCidade} onChange={e => set("fiadorCidade", e.target.value)} placeholder="Cidade" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Estado</Label>
+                    <Input value={formData.fiadorEstado} onChange={e => set("fiadorEstado", e.target.value)} placeholder="UF" maxLength={2} className="uppercase" />
+                  </div>
+                  <div className="space-y-1.5 col-span-2 flex items-center gap-2">
+                    <input type="checkbox" id="fiadorImovel" checked={formData.fiadorImovelProprio}
+                      onChange={e => set("fiadorImovelProprio", e.target.checked)}
+                      className="h-4 w-4 rounded border" />
+                    <Label htmlFor="fiadorImovel" className="font-normal cursor-pointer">Fiador possui imóvel próprio</Label>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ── CAUÇÃO ── */}
+            {formData.garantia === "caucao" && (
+              <div className="border rounded-lg p-4 space-y-4 bg-muted/30">
+                <p className="text-sm font-medium">Dados do caução</p>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label>Valor do depósito *</Label>
+                    <CurrencyInput value={formData.caucaoValor} onValueChange={v => set("caucaoValor", v)} placeholder="R$ 0,00" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Meses de caução</Label>
+                    <Select value={formData.caucaoMeses} onValueChange={v => set("caucaoMeses", v)}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {[1,2,3,6].map(m => <SelectItem key={m} value={m.toString()}>{m} {m===1?"mês":"meses"}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Data do pagamento</Label>
+                    <input type="date" value={formData.caucaoDataPagamento} onChange={e => set("caucaoDataPagamento", e.target.value)}
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Banco</Label>
+                    <Input value={formData.caucaoBanco} onChange={e => set("caucaoBanco", e.target.value)} placeholder="Ex: Nubank, Bradesco" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Agência</Label>
+                    <Input value={formData.caucaoAgencia} onChange={e => set("caucaoAgencia", e.target.value)} placeholder="0000" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Conta</Label>
+                    <Input value={formData.caucaoConta} onChange={e => set("caucaoConta", e.target.value)} placeholder="00000-0" />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ── PAGAMENTO ADIANTADO ── */}
+            {formData.garantia === "pagamento_adiantado" && (
+              <div className="border rounded-lg p-4 space-y-4 bg-muted/30">
+                <p className="text-sm font-medium">Pagamento adiantado</p>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label>Meses adiantados *</Label>
+                    <Select value={formData.adiantadoMeses} onValueChange={v => set("adiantadoMeses", v)}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {[1,2,3,6,12].map(m => <SelectItem key={m} value={m.toString()}>{m} {m===1?"mês":"meses"}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Valor pago *</Label>
+                    <CurrencyInput value={formData.adiantadoValor} onValueChange={v => set("adiantadoValor", v)} placeholder="R$ 0,00" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Data do pagamento</Label>
+                    <input type="date" value={formData.adiantadoDataPagamento} onChange={e => set("adiantadoDataPagamento", e.target.value)}
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ── SEGURO FIANÇA ── */}
+            {formData.garantia === "seguro_fianca" && (
+              <div className="border rounded-lg p-4 space-y-4 bg-muted/30">
+                <p className="text-sm font-medium">Dados do seguro fiança</p>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label>Seguradora *</Label>
+                    <Input value={formData.seguroSeguradora} onChange={e => set("seguroSeguradora", e.target.value)} placeholder="Ex: Porto Seguro" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Número da apólice *</Label>
+                    <Input value={formData.seguroApolice} onChange={e => set("seguroApolice", e.target.value)} placeholder="000000000" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Valor segurado</Label>
+                    <CurrencyInput value={formData.seguroValor} onValueChange={v => set("seguroValor", v)} placeholder="R$ 0,00" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Vencimento da apólice</Label>
+                    <input type="date" value={formData.seguroVencimento} onChange={e => set("seguroVencimento", e.target.value)}
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ── TÍTULO DE CAPITALIZAÇÃO ── */}
+            {formData.garantia === "titulo_capitalizacao" && (
+              <div className="border rounded-lg p-4 space-y-4 bg-muted/30">
+                <p className="text-sm font-medium">Dados do título de capitalização</p>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label>Empresa *</Label>
+                    <Input value={formData.tituloEmpresa} onChange={e => set("tituloEmpresa", e.target.value)} placeholder="Ex: Caixa Econômica" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Número do título *</Label>
+                    <Input value={formData.tituloNumero} onChange={e => set("tituloNumero", e.target.value)} placeholder="000000000" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Valor do título</Label>
+                    <CurrencyInput value={formData.tituloValor} onValueChange={v => set("tituloValor", v)} placeholder="R$ 0,00" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Vencimento</Label>
+                    <input type="date" value={formData.tituloVencimento} onChange={e => set("tituloVencimento", e.target.value)}
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
+                  </div>
+                </div>
+              </div>
+            )}
+
           </CardContent>
         </Card>
 
