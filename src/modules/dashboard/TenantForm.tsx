@@ -105,8 +105,8 @@ export default function TenantForm() {
           name: data.nome_completo, cpf: formatarCPF(data.cpf || ""),
           rg: data.rg || "", phone: formatarTelefone(data.telefone),
           email: data.email || "", rentDay: data.dia_vencimento.toString(),
-          startDate: data.data_inicio ? new Date(data.data_inicio) : undefined,
-          endDate: data.data_fim ? new Date(data.data_fim) : undefined,
+          startDate: data.data_inicio ? new Date(data.data_inicio + "T12:00:00") : undefined,
+          endDate: data.data_fim ? new Date(data.data_fim + "T12:00:00") : undefined,
           rentValue: data.valor_aluguel.toLocaleString("pt-BR", { minimumFractionDigits: 2 }),
           observations: data.observacoes || "",
           multaPercentual: data.multa_percentual?.toString() || "10",
@@ -114,6 +114,40 @@ export default function TenantForm() {
           correcaoMonetaria: data.correcao_monetaria || "igpm",
           garantia: data.garantia || "nenhuma",
           numeroContrato: data.numero_contrato || "",
+          // Fiador
+          fiadorNome: data.fiador_nome || "",
+          fiadorCpf: formatarCPF(data.fiador_cpf || ""),
+          fiadorRg: data.fiador_rg || "",
+          fiadorTelefone: formatarTelefone(data.fiador_telefone || ""),
+          fiadorEmail: data.fiador_email || "",
+          fiadorProfissao: data.fiador_profissao || "",
+          fiadorRenda: data.fiador_renda?.toLocaleString("pt-BR", { minimumFractionDigits: 2 }) || "",
+          fiadorEndereco: data.fiador_endereco || "",
+          fiadorCidade: data.fiador_cidade || "",
+          fiadorEstado: data.fiador_estado || "",
+          fiadorCep: data.fiador_cep || "",
+          fiadorImovelProprio: data.fiador_imovel_proprio || false,
+          // Caução
+          caucaoValor: data.caucao_valor?.toLocaleString("pt-BR", { minimumFractionDigits: 2 }) || "",
+          caucaoMeses: data.caucao_meses?.toString() || "3",
+          caucaoDataPagamento: data.caucao_data_pagamento || "",
+          caucaoBanco: data.caucao_banco || "",
+          caucaoAgencia: data.caucao_agencia || "",
+          caucaoConta: data.caucao_conta || "",
+          // Pagamento adiantado
+          adiantadoMeses: data.adiantado_meses?.toString() || "1",
+          adiantadoValor: data.adiantado_valor?.toLocaleString("pt-BR", { minimumFractionDigits: 2 }) || "",
+          adiantadoDataPagamento: data.adiantado_data_pagamento || "",
+          // Seguro fiança
+          seguroSeguradora: data.seguro_seguradora || "",
+          seguroApolice: data.seguro_apolice || "",
+          seguroValor: data.seguro_valor?.toLocaleString("pt-BR", { minimumFractionDigits: 2 }) || "",
+          seguroVencimento: data.seguro_vencimento || "",
+          // Título capitalização
+          tituloEmpresa: data.titulo_empresa || "",
+          tituloNumero: data.titulo_numero || "",
+          tituloValor: data.titulo_valor?.toLocaleString("pt-BR", { minimumFractionDigits: 2 }) || "",
+          tituloVencimento: data.titulo_vencimento || "",
         });
         setExistingContractPhotos(data.fotos_contrato || []);
         setPropertyId(data.imovel_id);
