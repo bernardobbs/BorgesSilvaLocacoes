@@ -1,0 +1,56 @@
+// Based on Lugo — Copyright (c) 2024 Renilson Medeiros — MIT License
+"use client";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Star } from "lucide-react";
+
+interface ScoreBadgeProps {
+  score: number | null;
+  totalParcelas?: number;
+  pagas?: number;
+  vencidas?: number;
+  mediaDiasAtraso?: number;
+  pctPontualidade?: number;
+  size?: "sm" | "md";
+}
+
+const SCORE_CONFIG = {
+  1: { stars: 1, label: "Crítico",    color: "text-red-500",    bg: "bg-red-50 border-red-200" },
+  2: { stars: 2, label: "Ruim",       color: "text-orange-500", bg: "bg-orange-50 border-orange-200" },
+  3: { stars: 3, label: "Regular",    color: "text-yellow-500", bg: "bg-yellow-50 border-yellow-200" },
+  4: { stars: 4, label: "Bom",        color: "text-blue-500",   bg: "bg-blue-50 border-blue-200" },
+  5: { stars: 5, label: "Excelente",  color: "text-green-500",  bg: "bg-green-50 border-green-200" },
+};
+
+export function ScoreBadge({ score, totalParcelas, pagas, vencidas, mediaDiasAtraso, pctPontualidade, size = "md" }: ScoreBadgeProps) {
+  if (score === null || score === undefined) {
+    return (
+      <span className="text-xs text-muted-foreground italic">sem histórico</span>
+    );
+  }
+
+  const cfg = SCORE_CONFIG[score as keyof typeof SCORE_CONFIG] || SCORE_CONFIG[3];
+  const starSize = size === "sm" ? "h-3 w-3" : "h-3.5 w-3.5";
+
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <div className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-xs font-medium cursor-default ${cfg.bg}`}>
+            <div className={`flex gap-0.5 ${cfg.color}`}>
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Star key={i} className={`${starSize} ${i < cfg.stars ? "fill-current" : "opacity-20"}`} />
+              ))}
+            </div>
+            <span className={cfg.color}>{cfg.label}</span>
+          </div>
+        </TooltipTrigger>
+        <TooltipContent side="top" className="text-xs space-y-1 max-w-[200px]">
+          <p className="font-medium">Score de pontualidade</p>
+          {totalParcelas !== undefined && <p>Parcelas: {pagas} pagas / {vencidas} vencidas / {totalParcelas} total</p>}
+          {pctPontualidade !== undefined && <p>Pagas no prazo: {pctPontualidade}%</p>}
+          {mediaDiasAtraso !== undefined && mediaDiasAtraso > 0 && <p>Média de atraso: {mediaDiasAtraso} dias</p>}
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}

@@ -48,5 +48,14 @@ export default async function TenantsListPage() {
             : (item.imoveis || null)
     }));
 
+    // Buscar scores
+    const { data: scores } = await supabase
+        .from('score_inquilinos')
+        .select('inquilino_id, score, total_parcelas, pagas, vencidas, media_dias_atraso, pct_pontualidade');
+
+    const scoresMap = Object.fromEntries(
+        (scores || []).map((s: any) => [s.inquilino_id, s])
+    );
+
     return <TenantsList initialData={transformedData} initialLoading={false} />;
 }

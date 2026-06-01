@@ -1,4 +1,5 @@
 "use client";
+import { ScoreBadge } from "@/components/dashboard/ScoreBadge";
 
 import Link from "next/link";
 import { useEffect, useState, useMemo, useCallback, memo } from "react";
@@ -58,11 +59,12 @@ interface Tenant {
 }
 
 interface TenantsListProps {
+  scoresMap?: Record<string, any>;
   initialData?: Tenant[];
   initialLoading?: boolean;
 }
 
-export default function TenantsList({ initialData = [], initialLoading = true }: TenantsListProps) {
+export default function TenantsList({ initialData = [], initialLoading = true, scoresMap = {} }: TenantsListProps) {
   const { user } = useAuth();
   const { formatarCPF, formatarTelefone } = useFormFormatting();
   const [searchQuery, setSearchQuery] = useState("");
@@ -283,6 +285,7 @@ export default function TenantsList({ initialData = [], initialLoading = true }:
             {filteredTenants.map((tenant, index) => (
               <TenantCard
                 key={tenant.id}
+                score={scoresMap[tenant.id]}
                 tenant={tenant}
                 index={index}
                 onTerminate={handleTerminateLease}
@@ -306,6 +309,7 @@ export default function TenantsList({ initialData = [], initialLoading = true }:
 }
 
 interface TenantCardProps {
+  score?: any;
   tenant: Tenant;
   index: number;
   onTerminate: (tenant: Tenant) => void;
@@ -313,7 +317,7 @@ interface TenantCardProps {
   formatarTelefone: (phone: string) => string;
 }
 
-const TenantCard = memo(({ tenant, index, onTerminate, formatarCPF, formatarTelefone }: TenantCardProps) => {
+const TenantCard = memo(({ tenant, index, onTerminate, formatarCPF, formatarTelefone, score }: TenantCardProps) => {
   return (
     <Card
       className="transition-all duration-300 hover:shadow-md animate-fade-in"
@@ -333,6 +337,7 @@ const TenantCard = memo(({ tenant, index, onTerminate, formatarCPF, formatarTele
               <div className="flex w-full flex-1 flex-col gap-1">
                 <div className="flex  items-center justify-between md:justify-start gap-4">
                   <h3 className="font-display font-semibold">{tenant.nome_completo}</h3>
+                  {score && <ScoreBadge score={score.score} totalParcelas={score.total_parcelas} pagas={score.pagas} vencidas={score.vencidas} mediaDiasAtraso={score.media_dias_atraso} pctPontualidade={score.pct_pontualidade} size="sm" />}
 
                   <Badge
                     variant="outline"
