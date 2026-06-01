@@ -21,5 +21,5 @@ export default async function AcordosPage() {
     .eq("inquilinos.imoveis.proprietario_id", session.user.id)
     .order("created_at", { ascending: false });
 
-  return <AcordosList acordos={acordos || []} />;
+  return <AcordosList acordos={(acordos || []) as any} />;
 }
