@@ -254,3 +254,27 @@ export async function PropertiesPreviewSection({ userId }: { userId: string }) {
 
     return <PropertiesPreviewClient properties={formattedProperties} />;
 }
+
+export async function NotificacoesSection({ userId }: { userId: string }) {
+    const supabase = await createClient();
+
+    const { data: notificacoes } = await supabase
+        .from('notificacoes_pendentes')
+        .select('*')
+        .eq('proprietario_id', userId);
+
+    const NotificacoesCobranca = (await import('./NotificacoesCobranca')).default;
+
+    return (
+        <NotificacoesCobranca
+            notificacoes={(notificacoes || []).map((n: any) => ({
+                ...n,
+                imovel_titulo: n.imovel_titulo,
+                dias_atraso: Number(n.dias_atraso),
+                valor_total: Number(n.valor_total),
+                estagio_atual: Number(n.estagio_atual),
+            }))}
+            compact={true}
+        />
+    );
+}

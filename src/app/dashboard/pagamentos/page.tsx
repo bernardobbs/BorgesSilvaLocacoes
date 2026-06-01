@@ -2,6 +2,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import PagamentosList from "@/modules/dashboard/PagamentosList";
+import NotificacoesCobranca from "@/components/dashboard/NotificacoesCobranca";
 
 export default async function PagamentosPage() {
   const supabase = await createClient();
@@ -39,8 +40,24 @@ export default async function PagamentosPage() {
     .gte("mes_referencia", sixMonthsAgo.toISOString().split("T")[0])
     .order("mes_referencia", { ascending: false });
 
+  // Buscar notificações pendentes
+  const { data: notificacoes } = await supabase
+    .from("notificacoes_pendentes")
+    .select("*")
+    .eq("proprietario_id", session.user.id);
+
+  const notifs = (notificacoes || []).map((n: any) => ({
+    ...n,
+    imovel_titulo: n.imovel_titulo,
+    dias_atraso: Number(n.dias_atraso),
+    valor_total: Number(n.valor_total),
+    estagio_atual: Number(n.estagio_atual),
+  }));
+
   return (
-    <PagamentosList
+    <div className="space-y-4">
+      <NotificacoesCobranca notificacoes={notifs} />
+      <PagamentosList
       initialInquilinos={(inquilinos || []).map((i: any) => ({
         ...i,
         imoveis: Array.isArray(i.imoveis) ? i.imoveis[0] : i.imoveis,
@@ -48,5 +65,6 @@ export default async function PagamentosPage() {
       initialComprovantes={comprovantes || []}
       userId={session.user.id}
     />
+    </div>
   );
 }
