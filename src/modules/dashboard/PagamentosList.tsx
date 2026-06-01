@@ -1,5 +1,6 @@
 // Based on Lugo — Copyright (c) 2024 Renilson Medeiros — MIT License
 "use client";
+import AcordoModal from "@/components/dashboard/AcordoModal";
 import { useState, useMemo, useCallback } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -121,6 +122,9 @@ export default function PagamentosList({ initialInquilinos, initialComprovantes,
   const [modalInq, setModalInq] = useState<Inquilino | null>(null);
   const [modalComp, setModalComp] = useState<Comprovante | null>(null);
   const [modalMes, setModalMes] = useState(toISOMonth(hoje));
+  const [acordoOpen, setAcordoOpen] = useState(false);
+  const [acordoInq, setAcordoInq] = useState<Inquilino | null>(null);
+  const [acordoComps, setAcordoComps] = useState<Comprovante[]>([]);
 
   /* navegar mês */
   function navMes(dir: number) {
@@ -300,11 +304,20 @@ export default function PagamentosList({ initialInquilinos, initialComprovantes,
                         {sit !== "billed" && (
                           <>
                             {sit === "expired" && (
-                              <a href={whatsappLink(inq,total,mesAtual,dias)} target="_blank" rel="noreferrer">
-                                <Button size="sm" variant="outline" className="text-green-600 border-green-400 px-2">
-                                  <MessageCircle className="h-4 w-4" />
+                              <>
+                                <a href={whatsappLink(inq,total,mesAtual,dias)} target="_blank" rel="noreferrer">
+                                  <Button size="sm" variant="outline" className="text-green-600 border-green-400 px-2">
+                                    <MessageCircle className="h-4 w-4" />
+                                  </Button>
+                                </a>
+                                <Button size="sm" variant="outline" className="text-blue-600 border-blue-300"
+                                  onClick={() => {
+                                    const vencidos = comprovantes.filter(cv => cv.inquilino_id === inq.id && cv.situation === "expired");
+                                    setAcordoInq(inq); setAcordoComps(vencidos); setAcordoOpen(true);
+                                  }}>
+                                  🤝 Acordo
                                 </Button>
-                              </a>
+                              </>
                             )}
                             <Button size="sm" onClick={() => abrirModal(inq, comp, mesAtual)}>
                               {comp ? "Registrar pagamento" : "Registrar pagamento"}
@@ -426,7 +439,21 @@ export default function PagamentosList({ initialInquilinos, initialComprovantes,
         </div>
       )}
 
-      {/* modal */}
+      {/* modal acordo */}
+      {acordoOpen && acordoInq && (
+        <AcordoModal
+          open={acordoOpen}
+          onClose={() => setAcordoOpen(false)}
+          onSuccess={recarregar}
+          inquilinoId={acordoInq.id}
+          imovelId={acordoInq.imovel_id}
+          nomeInquilino={acordoInq.nome_completo}
+          imovelTitulo={acordoInq.imoveis?.titulo || ""}
+          comprovantesVencidos={acordoComps}
+        />
+      )}
+
+      {/* modal pagamento */}
       {modalOpen && modalInq && (
         <RegistrarPagamentoModal
           open={modalOpen} onClose={() => setModalOpen(false)} onSuccess={recarregar}

@@ -43,6 +43,7 @@ const menuItems = [
   { icon: Building2, label: "Imóveis", href: "/dashboard/imoveis" },
   { icon: Users, label: "Inquilinos", href: "/dashboard/inquilinos" },
   { icon: DollarSign, label: "Pagamentos", href: "/dashboard/pagamentos" },
+  { icon: Handshake, label: "Acordos", href: "/dashboard/acordos" },
   { icon: Receipt, label: "Comprovantes", href: "/dashboard/comprovantes" },
   { icon: Settings, label: "Configurações", href: "/dashboard/configuracoes" },
 ];
