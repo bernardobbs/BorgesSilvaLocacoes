@@ -57,5 +57,5 @@ export default async function TenantsListPage() {
         (scores || []).map((s: any) => [s.inquilino_id, s])
     );
 
-    return <TenantsList initialData={transformedData} initialLoading={false} />;
+    return <TenantsList initialData={transformedData} initialLoading={false} scoresMap={scoresMap} />;
 }
