@@ -88,14 +88,13 @@ export default function TenantsList({ initialData = [], initialLoading = true, s
         .select(`
           id,
           nome_completo,
-          cpf,
-          telefone,
-          email,
+          cpf, cnpj, tipo_pessoa,
+          telefone, email,
           imovel_id,
           dia_vencimento,
-          data_inicio,
-          data_fim,
+          data_inicio, data_fim,
           status,
+          divida_residual, data_desocupacao, motivo_encerramento, relatorio_pdf_url,
           imoveis!inner (
             titulo,
             endereco_rua,
@@ -304,7 +303,17 @@ const TenantCard = memo(({ tenant, index, onTerminate, formatarCPF, formatarTele
               <div className="flex w-full flex-1 flex-col gap-1">
                 <div className="flex  items-center justify-between md:justify-start gap-4">
                   <h3 className="font-display font-semibold">{tenant.nome_completo}</h3>
-                  {score && <ScoreBadge score={score.score} totalParcelas={score.total_parcelas} pagas={score.pagas} vencidas={score.vencidas} mediaDiasAtraso={score.media_dias_atraso} pctPontualidade={score.pct_pontualidade} size="sm" />}
+                  {score && tenant.status === 'ativo' && <ScoreBadge score={score.score} totalParcelas={score.total_parcelas} pagas={score.pagas} vencidas={score.vencidas} mediaDiasAtraso={score.media_dias_atraso} pctPontualidade={score.pct_pontualidade} size="sm" />}
+                  {tenant.status === 'inativo' && (tenant as any).data_desocupacao && (
+                    <span className="text-xs text-muted-foreground">
+                      Saiu em {(tenant as any).data_desocupacao.split('-').reverse().join('/')}
+                      {(tenant as any).divida_residual > 0 && (
+                        <span className="ml-2 text-red-600 font-medium">
+                          · Dívida: {Number((tenant as any).divida_residual).toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}
+                        </span>
+                      )}
+                    </span>
+                  )}
 
                   <Badge
                     variant="outline"
@@ -313,7 +322,7 @@ const TenantCard = memo(({ tenant, index, onTerminate, formatarCPF, formatarTele
                       : "bg-red-50 text-red-500 border-red-200"
                       }`}
                   >
-                    {tenant.status === "ativo" ? "Ativo" : "Inativo"}
+                    {tenant.status === "ativo" ? "Ativo" : "Encerrado"}
                   </Badge>
                 </div>
                 <p className="text-sm text-muted-foreground">CPF: {formatarCPF(tenant.cpf)}</p>
@@ -365,6 +374,14 @@ const TenantCard = memo(({ tenant, index, onTerminate, formatarCPF, formatarTele
                   >
                     <UserMinus className="mr-2 h-4 w-4" />
                     Finalizar Locação
+                  </DropdownMenuItem>
+                )}
+                {tenant.status === 'inativo' && (tenant as any).relatorio_pdf_url && (
+                  <DropdownMenuItem asChild>
+                    <a href={(tenant as any).relatorio_pdf_url} target="_blank" rel="noreferrer" className="cursor-pointer text-red-600">
+                      <UserMinus className="mr-2 h-4 w-4" />
+                      Ver relatório de dívida
+                    </a>
                   </DropdownMenuItem>
                 )}
               </DropdownMenuContent>
