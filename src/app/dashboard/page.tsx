@@ -7,6 +7,7 @@ import {
     CombinedRevenueOccupancySection, 
     AlertsSection,
     NotificacoesSection,
+    DividasExInquilinosSection,
     PropertiesPreviewSection
 } from "@/components/dashboard/DashboardSections";
 import { 
@@ -45,6 +46,7 @@ export default async function DashboardPage() {
                     <Suspense fallback={<AlertsSkeleton />}>
                         <AlertsSection userId={user.id} />
                         <NotificacoesSection userId={user.id} />
+                        <DividasExInquilinosSection userId={user.id} />
                     </Suspense>
                 </div>
             </div>

@@ -1,4 +1,5 @@
 "use client";
+import EncerrarContratoModal from "@/components/dashboard/EncerrarContratoModal";
 import { ScoreBadge } from "@/components/dashboard/ScoreBadge";
 
 import Link from "next/link";
@@ -68,6 +69,8 @@ export default function TenantsList({ initialData = [], initialLoading = true, s
   const { user } = useAuth();
   const { formatarCPF, formatarTelefone } = useFormFormatting();
   const [searchQuery, setSearchQuery] = useState("");
+  const [encerrarOpen, setEncerrarOpen] = useState(false);
+  const [encerrarInquilino, setEncerrarInquilino] = useState<any>(null);
   const [tenants, setTenants] = useState<Tenant[]>(initialData);
   const [isLoading, setIsLoading] = useState(initialLoading);
   const [error, setError] = useState<string | null>(null);
