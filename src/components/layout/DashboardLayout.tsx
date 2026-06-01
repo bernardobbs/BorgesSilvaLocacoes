@@ -116,9 +116,14 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const [isResending, setIsResending] = useState(false);
 
   const handleLogout = async () => {
-    await signOut();
-    router.refresh();
-    router.replace("/login");
+    try {
+      await signOut();
+    } catch (e) {
+      console.error("Logout error:", e);
+    } finally {
+      // Hard redirect — garante que o estado da sessão é limpo no browser
+      window.location.href = "/login";
+    }
   };
 
   const handleResendEmail = async () => {
