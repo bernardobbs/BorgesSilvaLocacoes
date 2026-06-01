@@ -5,7 +5,7 @@ import DashboardClientShell from "./DashboardClientShell";
 import { 
     StatsSection, 
     CombinedRevenueOccupancySection, 
-    AlertsSection, NotificacoesSection, 
+    AlertsSection, 
     PropertiesPreviewSection
 } from "@/components/dashboard/DashboardSections";
 import { 
@@ -42,7 +42,8 @@ export default async function DashboardPage() {
                 <div className="space-y-6">
                     <DashboardDicaCard />
                     <Suspense fallback={<AlertsSkeleton />}>
-                        <AlertsSection, NotificacoesSection userId={user.id} />
+                        <AlertsSection userId={user.id} />
+                        <NotificacoesSection userId={user.id} />
                     </Suspense>
                 </div>
             </div>
