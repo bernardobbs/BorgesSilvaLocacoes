@@ -133,59 +133,23 @@ export default function TenantsList({ initialData = [], initialLoading = true, s
   }, [user, initialLoading, loadTenants]);
 
   const handleTerminateLease = useCallback(async (tenant: Tenant) => {
-    try {
-      setIsLoading(true);
+    // Buscar comprovantes para mostrar no modal
+    const { data: comps } = await supabase
+      .from('comprovantes')
+      .select('id,mes_referencia,valor,valor_multa,valor_juros,situation,data_vencimento,data_pagamento')
+      .eq('inquilino_id', tenant.id)
+      .order('mes_referencia', { ascending: false });
 
-      const { data: comprovantes } = await supabase
-        .from('comprovantes')
-        .select('pdf_url')
-        .eq('inquilino_id', tenant.id);
+    const imovel = Array.isArray(tenant.imoveis) ? tenant.imoveis[0] : tenant.imoveis;
 
-      if (comprovantes && comprovantes.length > 0) {
-        const pdfPaths = comprovantes
-          .filter(c => c.pdf_url)
-          .map(c => {
-            const url = new URL(c.pdf_url!);
-            const pathParts = url.pathname.split('/');
-            const bucketIndex = pathParts.findIndex(p => p === 'imoveis-fotos');
-            return pathParts.slice(bucketIndex + 1).join('/');
-          });
-
-        if (pdfPaths.length > 0) {
-          await supabase.storage
-            .from('imoveis-fotos')
-            .remove(pdfPaths);
-        }
-      }
-
-      await supabase.from('comprovantes').delete().eq('inquilino_id', tenant.id);
-
-      const { error: tenantError } = await supabase
-        .from('inquilinos')
-        .update({
-          status: 'inativo',
-          data_fim: new Date().toISOString().split('T')[0]
-        })
-        .eq('id', tenant.id);
-
-      if (tenantError) throw tenantError;
-
-      const { error: propertyError } = await supabase
-        .from('imoveis')
-        .update({ status: 'disponivel' })
-        .eq('id', tenant.imovel_id);
-
-      if (propertyError) throw propertyError;
-
-      toast.success('Locação finalizada!');
-      await loadTenants();
-    } catch (error) {
-      console.error('Erro ao finalizar locação:', error);
-      toast.error('Erro ao finalizar locação');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [loadTenants]);
+    setEncerrarInquilino({
+      ...tenant,
+      comprovantes: comps || [],
+      imovelTitulo: imovel?.titulo || '',
+      imovelEndereco: imovel ? `${imovel.endereco_rua || ''}, ${imovel.endereco_numero || ''}` : '',
+    });
+    setEncerrarOpen(true);
+  }, []);
 
   const filteredTenants = useMemo(() => {
     return tenants.filter(
