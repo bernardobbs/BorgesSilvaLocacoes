@@ -15,7 +15,7 @@ export function Header() {
   const router = useRouter();
   const { user, loading, signOut } = useAuth();
   const isAuthPage = pathname === "/login" || pathname === "/registro";
-  const isPropertyPublicPage = pathname.startsWith("/imovel/");
+  const isPropertyPublicPage = false;
   const showNav = user || (!isPropertyPublicPage && !isAuthPage);
 
   const handleSignOut = async () => {

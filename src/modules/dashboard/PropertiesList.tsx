@@ -474,17 +474,7 @@ const PropertyCard = memo(({ property, index, onShare, onDelete, onTerminate, on
           <p className="font-semibold text-tertiary">
             {formatarMoeda((property.rent * 100).toString())}/mês
           </p>
-          <div className="flex items-center gap-1">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8"
-              onClick={() => onShare(property)}
-              aria-label="Compartilhar imóvel"
-            >
-              <Share2 className="h-4 w-4 text-primary" />
-            </Button>
-            <Link href={`/imovel/${property.id}`}>
+          <div className="flex items-center gap-1">            <Link href={`/dashboard/imoveis/${property.id}/editar`}>
               <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Ver imóvel">
                 <Eye className="h-4 w-4 text-primary" />
               </Button>
