@@ -5,7 +5,8 @@ import DashboardClientShell from "./DashboardClientShell";
 import { 
     StatsSection, 
     CombinedRevenueOccupancySection, 
-    AlertsSection, 
+    AlertsSection,
+    NotificacoesSection,
     PropertiesPreviewSection
 } from "@/components/dashboard/DashboardSections";
 import { 
