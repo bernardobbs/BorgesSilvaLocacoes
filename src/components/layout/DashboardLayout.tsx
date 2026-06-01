@@ -19,7 +19,7 @@ import {
   Loader2,
   ChevronLeft,
   ChevronRight
-, DollarSign } from "lucide-react";
+, DollarSign, Handshake } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
