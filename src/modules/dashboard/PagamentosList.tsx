@@ -306,11 +306,6 @@ export default function PagamentosList({ initialInquilinos, initialComprovantes,
                                 </Button>
                               </a>
                             )}
-                            {!comp && (
-                              <Button size="sm" variant="outline" onClick={() => lancarEmAberto(inq, mesAtual)}>
-                                + Em aberto
-                              </Button>
-                            )}
                             <Button size="sm" onClick={() => abrirModal(inq, comp, mesAtual)}>
                               {comp ? "Registrar pagamento" : "Registrar pagamento"}
                             </Button>
