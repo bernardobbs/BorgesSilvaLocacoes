@@ -1,6 +1,7 @@
 // Based on Lugo — Copyright (c) 2024 Renilson Medeiros — MIT License
 "use client";
 import AcordoModal from "@/components/dashboard/AcordoModal";
+import NotificacaoExtrajudicialBtn from "@/components/dashboard/NotificacaoExtrajudicialBtn";
 import { useState, useMemo, useCallback } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -18,6 +19,7 @@ import {
 interface Imovel { id: string; titulo: string; endereco_rua: string; endereco_numero: string; proprietario_id: string; }
 interface Inquilino {
   id: string; nome_completo: string; cpf: string; cnpj: string; tipo_pessoa: string;
+  endereco_rua?: string; endereco_numero?: string;
   telefone: string; valor_aluguel: number; dia_vencimento: number;
   multa_percentual: number; juros_percentual: number; imovel_id: string; imoveis: Imovel;
 }
@@ -317,6 +319,19 @@ export default function PagamentosList({ initialInquilinos, initialComprovantes,
                                   }}>
                                   🤝 Acordo
                                 </Button>
+                                {dias >= 20 && (
+                                  <NotificacaoExtrajudicialBtn
+                                    inquilinoId={inq.id}
+                                    imovelId={inq.imovel_id}
+                                    nomeInquilino={inq.nome_completo}
+                                    docInquilino={inq.cpf || inq.cnpj || ""}
+                                    imovelTitulo={inq.imoveis?.titulo || ""}
+                                    imovelEndereco={`${inq.imoveis?.endereco_rua || ""}, ${inq.imoveis?.endereco_numero || ""}`}
+                                    comprovantesVencidos={comprovantes.filter(cv => cv.inquilino_id === inq.id && cv.situation === "expired")}
+                                    diasAtraso={dias}
+                                    valorTotal={total}
+                                  />
+                                )}
                               </>
                             )}
                             <Button size="sm" onClick={() => abrirModal(inq, comp, mesAtual)}>
