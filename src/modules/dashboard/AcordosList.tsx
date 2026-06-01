@@ -39,7 +39,7 @@ interface Acordo {
   id:string; valor_original:number; valor_acordo:number; desconto:number;
   num_parcelas:number; valor_parcela:number; primeira_parcela:string;
   status:string; observacoes:string|null; created_at:string;
-  inquilinos: { id:string; nome_completo:string; telefone:string; imovel_id:string; imoveis:{id:string;titulo:string;}; };
+  inquilinos: any; // Supabase retorna array em joins aninhados
   parcelas_acordo: Parcela[];
 }
 
@@ -57,7 +57,7 @@ export default function AcordosList({ acordos: initial }: { acordos: Acordo[] })
         inquilinos!inner(id,nome_completo,telefone,imovel_id,imoveis!inner(id,titulo)),
         parcelas_acordo(id,numero,valor,data_vencimento,situation,data_pagamento,forma_pagamento)`)
       .order("created_at", { ascending: false });
-    setAcordos((data as Acordo[]) || []);
+    setAcordos((data as unknown as Acordo[]) || []);
   }, []);
 
   async function pagarParcela(parcelaId: string, acordoId: string) {
