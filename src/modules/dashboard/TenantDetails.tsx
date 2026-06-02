@@ -49,11 +49,13 @@ interface TenantData {
   status: 'ativo' | 'inativo';
   observacoes: string | null;
   imoveis: {
+    id: string;
     titulo: string;
     endereco_rua: string;
     endereco_numero: string;
     endereco_bairro: string;
     endereco_cidade: string;
+    proprietario_id: string;
   } | null;
 }
 
@@ -128,11 +130,13 @@ export default function TenantDetails() {
           status,
           observacoes,
           imoveis (
+            id,
             titulo,
             endereco_rua,
             endereco_numero,
             endereco_bairro,
-            endereco_cidade
+            endereco_cidade,
+            proprietario_id
           )
         `)
         .eq('id', id)
@@ -152,7 +156,7 @@ export default function TenantDetails() {
       // Carregar comprovantes
       const { data: comprovantesData, error: comprovantesError } = await supabase
         .from('comprovantes')
-        .select('id, mes_referencia, valor, created_at')
+        .select('id, mes_referencia, valor, valor_multa, valor_juros, situation, data_vencimento, data_pagamento, forma_pagamento, created_at')
         .eq('inquilino_id', id)
         .order('created_at', { ascending: false })
         .limit(12);
