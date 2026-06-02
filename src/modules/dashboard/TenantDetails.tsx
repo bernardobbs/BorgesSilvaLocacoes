@@ -81,6 +81,7 @@ export default function TenantDetails() {
   const [showTerminateDialog, setShowTerminateDialog] = useState(false);
   const [historicoNotif, setHistoricoNotif] = useState<any[]>([]);
   const [historicoPag, setHistoricoPag] = useState<any[]>([]);
+  const [acordos, setAcordos] = useState<any[]>([]);
   const [isTerminating, setIsTerminating] = useState(false);
 
   useEffect(() => {
@@ -88,6 +89,16 @@ export default function TenantDetails() {
       loadTenantData();
     }
   }, [id]);
+
+  const loadAcordos = async () => {
+    if (!id) return;
+    const { data } = await supabase
+      .from("acordos")
+      .select("id, valor_original, valor_acordo, desconto, num_parcelas, valor_parcela, status, observacoes, created_at, parcelas_acordo(id, numero, valor, data_vencimento, situation, data_pagamento, forma_pagamento)")
+      .eq("inquilino_id", id)
+      .order("created_at", { ascending: false });
+    setAcordos(data || []);
+  };
 
   const loadHistoricoPag = async () => {
     if (!id) return;

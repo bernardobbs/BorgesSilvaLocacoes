@@ -131,6 +131,10 @@ export default function PagamentosList({ initialInquilinos, initialComprovantes,
   const [modalComp, setModalComp] = useState<Comprovante | null>(null);
   const [modalMes, setModalMes] = useState(toISOMonth(hoje));
   const [acordoOpen, setAcordoOpen] = useState(false);
+  const [parcelaModal, setParcelaModal] = useState<{parcela: any; acordo: any; inq: any} | null>(null);
+  const [parcelaForma, setParcelaForma] = useState("pix");
+  const [parcelaData, setParcelaData] = useState(new Date().toISOString().split("T")[0]);
+  const [parcelaSalvando, setParcelaSalvando] = useState(false);
   const [acordoInq, setAcordoInq] = useState<Inquilino | null>(null);
   const [acordoComps, setAcordoComps] = useState<Comprovante[]>([]);
 
@@ -160,6 +164,21 @@ export default function PagamentosList({ initialInquilinos, initialComprovantes,
       .order("mes_referencia", { ascending: false });
     setComprovantes(data || []);
   }, [userId]);
+
+  async function pagarParcelaAcordo(parcelaId: string) {
+    try {
+      setParcelaSalvando(true);
+      const res = await fetch("/api/acordos/pagar-parcela", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ parcela_id: parcelaId, data_pagamento: parcelaData, forma_pagamento: parcelaForma }),
+      });
+      if (!res.ok) throw new Error("Erro ao registrar");
+      toast.success("Parcela do acordo registrada!");
+      setParcelaModal(null);
+      recarregar();
+    } catch { toast.error("Erro ao registrar pagamento"); }
+    finally { setParcelaSalvando(false); }
+  }
 
   /* lançar parcela em aberto para o mês */
   const lancarEmAberto = async (inq: Inquilino, mes: string) => {
@@ -452,8 +471,8 @@ export default function PagamentosList({ initialInquilinos, initialComprovantes,
                             )}
                             {sit !== "billed" && isAcordo && (
                               <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white"
-                                onClick={() => { setModalInq(item.inq as any); setModalComp(null); setModalMes(mesAtual); setModalOpen(true); }}>
-                                Registrar
+                                onClick={() => { setParcelaModal({ parcela: item.parcela, acordo: item.acordo, inq: item.inq }); }}>
+                                Registrar parcela
                               </Button>
                             )}
                             {sit==="billed" && !isAcordo && item.comp?.pdf_url && (
@@ -571,6 +590,45 @@ export default function PagamentosList({ initialInquilinos, initialComprovantes,
               </Card>
             </div>
           )}
+        </div>
+      )}
+
+      {/* modal parcela de acordo */}
+      {parcelaModal && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-background border rounded-xl shadow-xl w-full max-w-sm p-5 space-y-4">
+            <div>
+              <h3 className="font-semibold">Registrar parcela do acordo</h3>
+              <p className="text-sm text-muted-foreground mt-0.5">
+                {parcelaModal.inq?.nome_completo} · Parcela {parcelaModal.parcela?.numero}/{parcelaModal.acordo?.num_parcelas} · {fmtBRL(parcelaModal.parcela?.valor || 0)}
+              </p>
+            </div>
+            <div className="space-y-3">
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium">Data do pagamento</label>
+                <input type="date" value={parcelaData} onChange={e => setParcelaData(e.target.value)}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium">Forma de pagamento</label>
+                <select value={parcelaForma} onChange={e => setParcelaForma(e.target.value)}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+                  <option value="pix">Pix</option>
+                  <option value="dinheiro">Dinheiro</option>
+                  <option value="transferencia">Transferência</option>
+                  <option value="cartao">Cartão</option>
+                  <option value="cheque">Cheque</option>
+                </select>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setParcelaModal(null)} className="px-4 py-2 text-sm border rounded-md">Cancelar</button>
+              <button onClick={() => pagarParcelaAcordo(parcelaModal.parcela.id)} disabled={parcelaSalvando}
+                className="px-4 py-2 text-sm bg-blue-600 text-white rounded-md disabled:opacity-50">
+                {parcelaSalvando ? "Salvando..." : "Confirmar"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
