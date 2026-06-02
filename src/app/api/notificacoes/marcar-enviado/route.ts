@@ -15,11 +15,11 @@ export async function POST(request: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
 
-    const { inquilino_id, comprovante_id, imovel_id, estagio, dias_atraso, valor_total, mes_referencia } = await request.json();
+    const { inquilino_id, comprovante_id, imovel_id, estagio, config_id, dias_atraso, valor_total, mes_referencia } = await request.json();
 
     await supabase.from("notificacoes_cobranca").insert({
       inquilino_id, comprovante_id, imovel_id,
-      estagio, dias_atraso, valor_total,
+      estagio, config_id: config_id || null, dias_atraso, valor_total,
       mes_referencia, enviado_por: user.id,
     });
 

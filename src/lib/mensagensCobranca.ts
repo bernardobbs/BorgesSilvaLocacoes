@@ -1,90 +1,56 @@
 // Based on Lugo — Copyright (c) 2024 Renilson Medeiros — MIT License
 
-export type EstagioCobranca = 1 | 10 | 20;
-
-interface MensagemParams {
-  nomeInquilino: string;
-  imovelTitulo: string;
-  mesReferencia: string;   // "Mai/2026"
-  diasAtraso: number;
-  valorAluguel: number;
-  multa: number;
-  juros: number;
-  valorTotal: number;
+export interface ConfigNotificacao {
+  id: string;
+  ordem: number;
+  dias_atraso: number;
+  label: string;
+  mensagem_template: string;
+  ativo: boolean;
 }
 
 function fmtBRL(v: number) {
   return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
-export function gerarMensagem(estagio: EstagioCobranca, p: MensagemParams): string {
-  const encargos = [
-    `• Aluguel: *${fmtBRL(p.valorAluguel)}*`,
-    p.multa > 0 ? `• Multa: *${fmtBRL(p.multa)}*` : null,
-    p.juros > 0 ? `• Juros (${p.diasAtraso} dias): *${fmtBRL(p.juros)}*` : null,
-    `• *Total: ${fmtBRL(p.valorTotal)}*`,
-  ].filter(Boolean).join("\n");
-
-  if (estagio === 1) {
-    return [
-      `Olá, *${p.nomeInquilino}*! 👋`,
-      ``,
-      `Passando para avisar que o aluguel de *${p.imovelTitulo}* referente a *${p.mesReferencia}* ainda não foi identificado no nosso sistema.`,
-      ``,
-      `📋 Valores:`,
-      encargos,
-      ``,
-      `Se já realizou o pagamento, por favor envie o comprovante para regularizarmos. Caso contrário, entre em contato para combinarmos.`,
-      ``,
-      `Obrigado! 🏠`,
-      `*Borges Silva Locações*`,
-    ].join("\n");
+/**
+ * Substitui variáveis no template da mensagem
+ * Variáveis disponíveis: {{nome}}, {{imovel}}, {{mes}}, {{dias}},
+ *   {{valor_base}}, {{multa}}, {{juros}}, {{valor_total}}, {{vencimento}}
+ */
+export function renderMensagem(
+  template: string,
+  vars: {
+    nome: string;
+    imovel: string;
+    mes: string;
+    dias: number;
+    valorBase: number;
+    multa: number;
+    juros: number;
+    valorTotal: number;
+    vencimento?: string;
   }
-
-  if (estagio === 10) {
-    return [
-      `Prezado(a) *${p.nomeInquilino}*,`,
-      ``,
-      `Informamos que o aluguel referente a *${p.mesReferencia}* do imóvel *${p.imovelTitulo}* encontra-se em aberto há *${p.diasAtraso} dias*.`,
-      ``,
-      `📋 Demonstrativo atualizado:`,
-      encargos,
-      ``,
-      `Solicitamos a regularização até 48 horas. Caso já tenha efetuado o pagamento, encaminhe o comprovante.`,
-      ``,
-      `*Borges Silva Locações*`,
-    ].join("\n");
-  }
-
-  // estagio === 20
-  return [
-    `*${p.nomeInquilino}*,`,
-    ``,
-    `⚠️ NOTIFICAÇÃO FORMAL DE INADIMPLÊNCIA`,
-    ``,
-    `O aluguel referente a *${p.mesReferencia}* do imóvel *${p.imovelTitulo}* permanece em aberto há *${p.diasAtraso} dias*, configurando inadimplência contratual.`,
-    ``,
-    `📋 Valor total em aberto:`,
-    encargos,
-    ``,
-    `Caso não haja regularização ou contato em *72 horas*, tomaremos as medidas legais cabíveis, incluindo:`,
-    `— Notificação extrajudicial com AR`,
-    `— Negativação junto aos órgãos de proteção ao crédito`,
-    `— Ação de despejo por falta de pagamento`,
-    ``,
-    `*Borges Silva Locações*`,
-    `_Esta mensagem tem caráter de notificação formal._`,
-  ].join("\n");
+): string {
+  return template
+    .replace(/{{nome}}/g,        vars.nome)
+    .replace(/{{imovel}}/g,      vars.imovel)
+    .replace(/{{mes}}/g,         vars.mes)
+    .replace(/{{dias}}/g,        vars.dias.toString())
+    .replace(/{{valor_base}}/g,  fmtBRL(vars.valorBase))
+    .replace(/{{multa}}/g,       fmtBRL(vars.multa))
+    .replace(/{{juros}}/g,       fmtBRL(vars.juros))
+    .replace(/{{valor_total}}/g, fmtBRL(vars.valorTotal))
+    .replace(/{{vencimento}}/g,  vars.vencimento || "");
 }
 
-export function labelEstagio(e: EstagioCobranca) {
-  return { 1: "Aviso amigável", 10: "Cobrança formal", 20: "Pré-extrajudicial" }[e];
-}
-
-export function corEstagio(e: EstagioCobranca) {
-  return {
-    1:  { bg: "bg-yellow-50",  border: "border-yellow-200", text: "text-yellow-700",  badge: "bg-yellow-100 text-yellow-800" },
-    10: { bg: "bg-orange-50",  border: "border-orange-200", text: "text-orange-700",  badge: "bg-orange-100 text-orange-800" },
-    20: { bg: "bg-red-50",     border: "border-red-200",    text: "text-red-800",     badge: "bg-red-100 text-red-900" },
-  }[e];
+export function corConfig(ordem: number) {
+  const cores: Record<number, { bg: string; border: string; text: string; badge: string }> = {
+    1: { bg:"bg-yellow-50",  border:"border-yellow-200", text:"text-yellow-700",  badge:"bg-yellow-100 text-yellow-800" },
+    2: { bg:"bg-orange-50",  border:"border-orange-200", text:"text-orange-700",  badge:"bg-orange-100 text-orange-800" },
+    3: { bg:"bg-red-50",     border:"border-red-200",    text:"text-red-800",     badge:"bg-red-100 text-red-900" },
+    4: { bg:"bg-red-950/10", border:"border-red-900",    text:"text-red-900",     badge:"bg-red-900 text-red-50" },
+    5: { bg:"bg-red-950/20", border:"border-red-900",    text:"text-red-950",     badge:"bg-red-950 text-red-50" },
+  };
+  return cores[ordem] || cores[3];
 }

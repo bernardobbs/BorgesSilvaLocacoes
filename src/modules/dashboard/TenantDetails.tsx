@@ -77,6 +77,7 @@ export default function TenantDetails() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showTerminateDialog, setShowTerminateDialog] = useState(false);
+  const [historicoNotif, setHistoricoNotif] = useState<any[]>([]);
   const [isTerminating, setIsTerminating] = useState(false);
 
   useEffect(() => {
@@ -84,6 +85,16 @@ export default function TenantDetails() {
       loadTenantData();
     }
   }, [id]);
+
+  const loadHistoricoNotif = async () => {
+    if (!id) return;
+    const { data } = await supabase
+      .from("notificacoes_cobranca")
+      .select("id, estagio, dias_atraso, valor_total, enviado_em, mes_referencia, config_id, config_notificacoes(label), profiles(nome_completo)")
+      .eq("inquilino_id", id)
+      .order("enviado_em", { ascending: false });
+    setHistoricoNotif(data || []);
+  };
 
   const loadTenantData = async () => {
     try {
