@@ -152,7 +152,13 @@ export async function POST(request: NextRequest) {
     doc.setTextColor(30,120,60); doc.text(fmtBRL(totalPago),R,y,{align:"right"}); y+=7;
     doc.setTextColor(30,30,30); doc.text("Total em aberto (c/ encargos):",L,y);
     doc.setFont("helvetica","bold"); doc.setTextColor(180,0,0);
-    doc.text(fmtBRL(inq.divida_residual||totalDevido),R,y,{align:"right"});
+    doc.text(fmtBRL(totalDevido),R,y,{align:"right"});
+    // Atualizar divida_residual com valor calculado
+    if (totalDevido !== inq.divida_residual) {
+      await supabase.from("inquilinos")
+        .update({ divida_residual: totalDevido })
+        .eq("id", inquilino_id);
+    }
     y+=12; checkPage();
 
     // ── ACORDOS ───────────────────────────────────────
