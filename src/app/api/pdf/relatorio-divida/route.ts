@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
 
     const hoje = new Date();
     const doc = new jsPDF();
-    const L = 20; const R = 190;
+    const L = 20; const R = 190; const W = R - L;
     let y = 20;
 
     // ── CABEÇALHO ──────────────────────────────────────
