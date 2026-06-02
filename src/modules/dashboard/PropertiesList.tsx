@@ -465,7 +465,9 @@ const PropertyCard = memo(({ property, index, onShare, onDelete, onTerminate, on
         </span>
       </div>
       <CardContent className="p-4">
-        <h3 className="font-display font-semibold text-ellipsis truncate">{property.title}</h3>
+        <Link href={`/dashboard/imoveis/${property.id}`} className="hover:text-primary transition-colors">
+          <h3 className="font-display font-semibold text-ellipsis truncate">{property.title}</h3>
+        </Link>
         <div className="mt-1 flex items-center gap-1 text-sm text-muted-foreground">
           <MapPin className="h-3 w-3" aria-hidden="true" />
           <span className="line-clamp-1">{property.address}</span>
@@ -474,7 +476,7 @@ const PropertyCard = memo(({ property, index, onShare, onDelete, onTerminate, on
           <p className="font-semibold text-tertiary">
             {formatarMoeda((property.rent * 100).toString())}/mês
           </p>
-          <div className="flex items-center gap-1">            <Link href={`/dashboard/imoveis/${property.id}/editar`}>
+          <div className="flex items-center gap-1">            <Link href={`/dashboard/imoveis/${property.id}`}>
               <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Ver imóvel">
                 <Eye className="h-4 w-4 text-primary" />
               </Button>
