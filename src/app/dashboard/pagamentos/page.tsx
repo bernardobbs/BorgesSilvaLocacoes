@@ -54,10 +54,34 @@ export default async function PagamentosPage() {
     estagio_atual: Number(n.estagio_atual),
   }));
 
+  // Buscar acordos ativos com parcelas
+  const { data: acordosAtivos } = await supabase
+    .from("acordos")
+    .select(`
+      id, valor_acordo, num_parcelas, status, observacoes,
+      inquilinos!inner (
+        id, nome_completo, telefone, imovel_id,
+        imoveis!inner (id, titulo, proprietario_id)
+      ),
+      parcelas_acordo (
+        id, numero, valor, data_vencimento, situation, data_pagamento, forma_pagamento
+      )
+    `)
+    .eq("status", "ativo")
+    .eq("inquilinos.imoveis.proprietario_id", session.user.id);
+
+  // IDs dos inquilinos com acordo ativo — para marcar na lista principal
+  const inquilinosComAcordo = new Set(
+    (acordosAtivos || []).map((a: any) => {
+      const inq = Array.isArray(a.inquilinos) ? a.inquilinos[0] : a.inquilinos;
+      return inq?.id;
+    }).filter(Boolean)
+  );
+
   return (
     <div className="space-y-4">
       <NotificacoesCobranca notificacoes={notifs} />
-      <PagamentosList
+      <PagamentosList acordosAtivos={(acordosAtivos || []) as any} inquilinosComAcordo={inquilinosComAcordo}
       initialInquilinos={(inquilinos || []).map((i: any) => ({
         ...i,
         imoveis: Array.isArray(i.imoveis) ? i.imoveis[0] : i.imoveis,

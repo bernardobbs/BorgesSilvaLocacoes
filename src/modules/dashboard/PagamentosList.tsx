@@ -1,5 +1,6 @@
 // Based on Lugo — Copyright (c) 2024 Renilson Medeiros — MIT License
 "use client";
+import AcordosEmAndamento from "@/components/dashboard/AcordosEmAndamento";
 import AcordoModal from "@/components/dashboard/AcordoModal";
 import NotificacaoExtrajudicialBtn from "@/components/dashboard/NotificacaoExtrajudicialBtn";
 import { useState, useMemo, useCallback } from "react";
@@ -12,7 +13,7 @@ import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import {
   ChevronLeft, ChevronRight, AlertCircle, Clock, CheckCircle2,
-  Building2, FileText, MessageCircle, User, History
+  Building2, FileText, MessageCircle, User, History, Handshake
 } from "lucide-react";
 
 /* ─────────────── types ─────────────── */
@@ -29,7 +30,7 @@ interface Comprovante {
   data_vencimento: string; data_pagamento: string | null; forma_pagamento: string | null;
   pdf_url: string | null; descricao: string | null; created_at: string;
 }
-interface Props { initialInquilinos: Inquilino[]; initialComprovantes: Comprovante[]; userId: string; }
+interface Props { initialInquilinos: Inquilino[]; initialComprovantes: Comprovante[]; userId: string; acordosAtivos?: any[]; inquilinosComAcordo?: Set<string>; }
 
 /* ─────────────── helpers ─────────────── */
 const MESES = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
@@ -61,8 +62,12 @@ function diasAtraso(inq: Inquilino, c: Comprovante | undefined, mes: string) {
   return Math.max(0, Math.floor((new Date().getTime() - venc.getTime()) / 86400000));
 }
 
-function getSituation(inq: Inquilino, c: Comprovante | undefined, mes: string): "billed"|"expired"|"open" {
+function getSituation(inq: Inquilino, c: Comprovante | undefined, mes: string, inqComAcordo?: Set<string>): "billed"|"expired"|"open"|"em_acordo" {
   if (c?.situation === "billed") return "billed";
+  const hoje = new Date();
+  const [y,m] = mes.split("-").map(Number);
+  const mesParsed = new Date(y, m-1, 1);
+  if (inqComAcordo?.has(inq.id) && mesParsed < new Date(hoje.getFullYear(), hoje.getMonth(), 1)) return "em_acordo";
   if (c?.situation === "expired" || diasAtraso(inq, c, mes) > 0) return "expired";
   return "open";
 }
@@ -113,7 +118,7 @@ function whatsappLink(inq: Inquilino, total: number, mes: string, dias: number) 
 }
 
 /* ─────────────── component ─────────────── */
-export default function PagamentosList({ initialInquilinos, initialComprovantes, userId }: Props) {
+export default function PagamentosList({ initialInquilinos, initialComprovantes, userId, acordosAtivos = [], inquilinosComAcordo = new Set() }: Props) {
   const hoje = new Date();
   const [mesAtual, setMesAtual] = useState(toISOMonth(hoje));
   const [comprovantes, setComprovantes] = useState<Comprovante[]>(initialComprovantes);
@@ -182,7 +187,7 @@ export default function PagamentosList({ initialInquilinos, initialComprovantes,
     let totalReceber = 0, recebido = 0, pendente = 0, inadimplente = 0;
     initialInquilinos.forEach(inq => {
       const c = compDoMes(inq.id, mesAtual);
-      const sit = getSituation(inq, c, mesAtual);
+      const sit = getSituation(inq, c, mesAtual, inquilinosComAcordo);
       const total = calcTotal(inq, c, mesAtual);
       totalReceber += inq.valor_aluguel;
       if (sit === "billed") recebido += (c?.valor||inq.valor_aluguel);
@@ -197,7 +202,9 @@ export default function PagamentosList({ initialInquilinos, initialComprovantes,
     return initialInquilinos.filter(inq => {
       if (filtro === "todos") return true;
       const c = compDoMes(inq.id, mesAtual);
-      return getSituation(inq, c, mesAtual) === filtro;
+      const sit = getSituation(inq, c, mesAtual, inquilinosComAcordo);
+      if (filtro === "expired") return sit === "expired" || sit === "em_acordo";
+      return sit === filtro;
     });
   }, [initialInquilinos, comprovantes, mesAtual, filtro]);
 
@@ -228,6 +235,14 @@ export default function PagamentosList({ initialInquilinos, initialComprovantes,
       {/* ══════════ ABA MENSAL ══════════ */}
       {aba === "mensal" && (
         <>
+          {/* acordos em andamento */}
+          {acordosAtivos.length > 0 && (
+            <AcordosEmAndamento
+              acordos={acordosAtivos}
+              onPagamento={recarregar}
+            />
+          )}
+
           {/* cards sumário */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {[
@@ -296,6 +311,7 @@ export default function PagamentosList({ initialInquilinos, initialComprovantes,
                         {sit === "billed" && <Badge variant="outline" className="text-green-600 border-green-300 bg-green-50 dark:bg-green-950"><CheckCircle2 className="h-3 w-3 mr-1" />Pago {fmtData(comp?.data_pagamento||null)}</Badge>}
                         {sit === "expired" && <Badge variant="outline" className="text-red-600 border-red-300 bg-red-50 dark:bg-red-950"><AlertCircle className="h-3 w-3 mr-1" />Vencido — {dias}d</Badge>}
                         {sit === "open" && <Badge variant="outline" className="text-blue-600 border-blue-300 bg-blue-50 dark:bg-blue-950"><Clock className="h-3 w-3 mr-1" />A vencer dia {inq.dia_vencimento}</Badge>}
+                      {sit === "em_acordo" && <Badge variant="outline" className="text-blue-700 border-blue-400 bg-blue-100"><Handshake className="h-3 w-3 mr-1" />Em acordo</Badge>}
                       </div>
                       <div>
                         <p className={`text-sm font-medium ${sit==="expired" ? "text-red-600" : ""}`}>{fmtBRL(total)}</p>
@@ -303,7 +319,7 @@ export default function PagamentosList({ initialInquilinos, initialComprovantes,
                         {sit==="billed" && comp?.forma_pagamento && <p className="text-xs text-muted-foreground">{formaLabel(comp.forma_pagamento)}</p>}
                       </div>
                       <div className="flex gap-2">
-                        {sit !== "billed" && (
+                        {sit !== "billed" && sit !== "em_acordo" && (
                           <>
                             {sit === "expired" && (
                               <>
