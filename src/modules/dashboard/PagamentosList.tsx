@@ -237,195 +237,240 @@ export default function PagamentosList({ initialInquilinos, initialComprovantes,
         ))}
       </div>
 
-      {/* ══════════ ABA MENSAL ══════════ */}
-      {aba === "calendario" && (
-        <>
-          {/* cards sumário */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {[
-              { label:"Total a receber", val: sumario.totalReceber, cls:"text-foreground" },
-              { label:"Recebido", val: sumario.recebido, cls:"text-green-600 dark:text-green-400" },
-              { label:"Pendente", val: sumario.pendente, cls:"text-yellow-600 dark:text-yellow-400" },
-              { label:"Inadimplente", val: sumario.inadimplente, cls:"text-red-600 dark:text-red-400" },
-            ].map(({ label, val, cls }) => (
-              <div key={label} className="bg-muted rounded-lg p-3">
-                <p className="text-xs text-muted-foreground mb-1">{label}</p>
-                <p className={`text-lg font-medium ${cls}`}>{fmtBRL(val)}</p>
-              </div>
-            ))}
-          </div>
+      {/* ══════════ ABA CALENDÁRIO ══════════ */}
+      {aba === "calendario" && (() => {
+        // Montar lista unificada: mensalidades + parcelas de acordo
+        type ItemCalendario = {
+          key: string;
+          tipo: "aluguel" | "acordo";
+          nome: string;
+          imovelTitulo: string;
+          valor: number;
+          dataVencimento: string; // YYYY-MM-DD
+          situation: "open" | "expired" | "billed" | "em_acordo";
+          dias: number;
+          inq?: Inquilino;
+          comp?: Comprovante;
+          parcela?: any;
+          acordo?: any;
+        };
 
-          {/* controles */}
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="flex items-center gap-1 border rounded-md px-2 py-1">
-              <button onClick={() => navMes(-1)} className="text-muted-foreground hover:text-foreground p-1"><ChevronLeft className="h-4 w-4" /></button>
-              <select
-                value={mesAtual}
-                onChange={e => setMesAtual(e.target.value)}
-                className="text-sm font-medium bg-transparent border-none outline-none cursor-pointer px-1"
-              >
-                {Array.from({ length: 24 }, (_, i) => {
-                  const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - 12 + i);
-                  const val = toISOMonth(d);
-                  const lbl = `${MESES_SHORT[d.getMonth()]}/${d.getFullYear()}`;
-                  return <option key={val} value={val}>{lbl}</option>;
-                })}
-              </select>
-              <button onClick={() => navMes(1)} className="text-muted-foreground hover:text-foreground p-1"><ChevronRight className="h-4 w-4" /></button>
-            </div>
-            <div className="flex gap-1.5">
-              {(["todos","open","expired","billed"] as const).map(f => (
-                <button key={f} onClick={() => setFiltro(f)}
-                  className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${filtro===f ? "bg-primary text-primary-foreground border-primary" : "text-muted-foreground hover:text-foreground border-border"}`}>
-                  {{todos:"Todos",open:"Em aberto",expired:"Vencidos",billed:"Pagos"}[f]}
-                </button>
+        const items: ItemCalendario[] = [];
+
+        // Mensalidades do mês selecionado
+        lista.forEach(inq => {
+          const comp = compDoMes(inq.id, mesAtual);
+          const sit = getSituation(inq, comp, mesAtual, inquilinosComAcordo) as any;
+          const dias = diasAtraso(inq, comp, mesAtual);
+          const total = calcTotal(inq, comp, mesAtual);
+          const vencStr = (() => {
+            if (comp?.data_vencimento) return comp.data_vencimento;
+            const [y,m] = mesAtual.split("-").map(Number);
+            const d = new Date(y, m-1, inq.dia_vencimento);
+            return d.toISOString().split("T")[0];
+          })();
+          items.push({
+            key: `aluguel-${inq.id}`,
+            tipo: "aluguel",
+            nome: inq.nome_completo,
+            imovelTitulo: inq.imoveis?.titulo || "",
+            valor: total,
+            dataVencimento: vencStr,
+            situation: sit,
+            dias,
+            inq, comp,
+          });
+        });
+
+        // Parcelas de acordo do mês selecionado
+        acordosAtivos.forEach((acordo: any) => {
+          const inq = Array.isArray(acordo.inquilinos) ? acordo.inquilinos[0] : acordo.inquilinos;
+          const im = Array.isArray(inq?.imoveis) ? inq.imoveis[0] : inq?.imoveis;
+          (acordo.parcelas_acordo || []).forEach((p: any) => {
+            // só mostrar parcelas do mês selecionado
+            const [py,pm] = p.data_vencimento.split("-").map(Number);
+            const [my,mm] = mesAtual.split("-").map(Number);
+            if (py !== my || pm !== mm) return;
+            const [vy,vm,vd] = p.data_vencimento.split("-").map(Number);
+            const venc = new Date(vy,vm-1,vd);
+            const diasP = Math.max(0, Math.floor((new Date().getTime()-venc.getTime())/86400000));
+            const sit: any = p.situation === "billed" ? "billed"
+              : diasP > 0 ? "expired" : "open";
+            items.push({
+              key: `acordo-${p.id}`,
+              tipo: "acordo",
+              nome: inq?.nome_completo || "",
+              imovelTitulo: im?.titulo || "",
+              valor: p.valor,
+              dataVencimento: p.data_vencimento,
+              situation: sit,
+              dias: diasP,
+              inq, parcela: p, acordo,
+            });
+          });
+        });
+
+        // Ordenar por data de vencimento
+        items.sort((a,b) => a.dataVencimento.localeCompare(b.dataVencimento));
+
+        // Sumário unificado
+        const totalReceber = items.filter(i=>i.situation!=="billed").reduce((s,i)=>s+i.valor,0);
+        const recebido    = items.filter(i=>i.situation==="billed").reduce((s,i)=>s+i.valor,0);
+        const inadimplente= items.filter(i=>i.situation==="expired").reduce((s,i)=>s+i.valor,0);
+
+        return (
+          <>
+            {/* sumário */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {[
+                { label:"Total a receber",  val: totalReceber+recebido, cls:"text-foreground" },
+                { label:"Recebido",          val: recebido,     cls:"text-green-600 dark:text-green-400" },
+                { label:"A vencer",          val: items.filter(i=>i.situation==="open").reduce((s,i)=>s+i.valor,0), cls:"text-yellow-600 dark:text-yellow-400" },
+                { label:"Inadimplente",      val: inadimplente, cls:"text-red-600 dark:text-red-400" },
+              ].map(({ label, val, cls }) => (
+                <div key={label} className="bg-muted rounded-lg p-3">
+                  <p className="text-xs text-muted-foreground mb-1">{label}</p>
+                  <p className={`text-lg font-medium ${cls}`}>{fmtBRL(val)}</p>
+                </div>
               ))}
             </div>
-          </div>
 
-          {/* lista */}
-          <div className="space-y-2">
-            {lista.length === 0 && (
-              <div className="text-center py-12 text-muted-foreground text-sm">Nenhum inquilino encontrado para este filtro.</div>
-            )}
-            {lista.map(inq => {
-              const comp = compDoMes(inq.id, mesAtual);
-              const sit = getSituation(inq, comp, mesAtual);
-              const dias = diasAtraso(inq, comp, mesAtual);
-              const total = calcTotal(inq, comp, mesAtual);
-              const encargos = total - inq.valor_aluguel;
-              return (
-                <Card key={inq.id} className={`${sit==="expired" ? "border-l-4 border-l-red-500" : ""}`}>
-                  <CardContent className="p-4">
-                    <div className="grid grid-cols-[2fr_1.2fr_1fr_auto] items-center gap-4">
-                      <div>
-                        <p className="font-medium text-sm">{inq.nome_completo}</p>
-                        <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-                          <Building2 className="h-3 w-3" />{inq.imoveis?.titulo}
-                        </p>
-                      </div>
-                      <div>
-                        {sit === "billed" && <Badge variant="outline" className="text-green-600 border-green-300 bg-green-50 dark:bg-green-950"><CheckCircle2 className="h-3 w-3 mr-1" />Pago {fmtData(comp?.data_pagamento||null)}</Badge>}
-                        {sit === "expired" && <Badge variant="outline" className="text-red-600 border-red-300 bg-red-50 dark:bg-red-950"><AlertCircle className="h-3 w-3 mr-1" />Vencido — {dias}d</Badge>}
-                        {sit === "open" && <Badge variant="outline" className="text-blue-600 border-blue-300 bg-blue-50 dark:bg-blue-950"><Clock className="h-3 w-3 mr-1" />A vencer dia {inq.dia_vencimento}</Badge>}
-                      {sit === "em_acordo" && <Badge variant="outline" className="text-blue-700 border-blue-400 bg-blue-100"><Handshake className="h-3 w-3 mr-1" />Em acordo</Badge>}
-                      </div>
-                      <div>
-                        <p className={`text-sm font-medium ${sit==="expired" ? "text-red-600" : ""}`}>{fmtBRL(total)}</p>
-                        {sit==="expired" && encargos > 0 && <p className="text-xs text-red-500">+{fmtBRL(encargos)} enc.</p>}
-                        {sit==="billed" && comp?.forma_pagamento && <p className="text-xs text-muted-foreground">{formaLabel(comp.forma_pagamento)}</p>}
-                      </div>
-                      <div className="flex gap-2">
-                        {sit !== "billed" && sit !== "em_acordo" && (
-                          <>
-                            {sit === "expired" && (
-                              <>
-                                <a href={whatsappLink(inq,total,mesAtual,dias)} target="_blank" rel="noreferrer">
-                                  <Button size="sm" variant="outline" className="text-green-600 border-green-400 px-2">
-                                    <MessageCircle className="h-4 w-4" />
-                                  </Button>
-                                </a>
-                                <Button size="sm" variant="outline" className="text-blue-600 border-blue-300"
-                                  onClick={() => {
-                                    const vencidos = comprovantes.filter(cv => cv.inquilino_id === inq.id && cv.situation === "expired");
-                                    setAcordoInq(inq); setAcordoComps(vencidos); setAcordoOpen(true);
-                                  }}>
-                                  🤝 Acordo
-                                </Button>
-                                {dias >= 20 && (
-                                  <NotificacaoExtrajudicialBtn
-                                    inquilinoId={inq.id}
-                                    imovelId={inq.imovel_id}
-                                    nomeInquilino={inq.nome_completo}
-                                    docInquilino={inq.cpf || inq.cnpj || ""}
-                                    imovelTitulo={inq.imoveis?.titulo || ""}
-                                    imovelEndereco={`${inq.imoveis?.endereco_rua || ""}, ${inq.imoveis?.endereco_numero || ""}`}
-                                    comprovantesVencidos={comprovantes.filter(cv => cv.inquilino_id === inq.id && cv.situation === "expired")}
-                                    diasAtraso={dias}
-                                    valorTotal={total}
-                                  />
-                                )}
-                              </>
-                            )}
-                            <Button size="sm" onClick={() => abrirModal(inq, comp, mesAtual)}>
-                              {comp ? "Registrar pagamento" : "Registrar pagamento"}
-                            </Button>
-                          </>
-                        )}
-                        {sit === "billed" && comp?.pdf_url && (
-                          <a href={comp.pdf_url} target="_blank" rel="noreferrer">
-                            <Button size="sm" variant="outline"><FileText className="h-4 w-4 mr-1" />Comprovante</Button>
-                          </a>
-                        )}
-                        {sit === "billed" && !comp?.pdf_url && (
-                          <Button size="sm" variant="outline" onClick={() => abrirModal(inq, comp, mesAtual)}>
-                            <FileText className="h-4 w-4 mr-1" />Gerar PDF
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
+            {/* controles */}
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex items-center gap-1 border rounded-md px-2 py-1">
+                <button onClick={() => navMes(-1)} className="text-muted-foreground hover:text-foreground p-1"><ChevronLeft className="h-4 w-4" /></button>
+                <select value={mesAtual} onChange={e => setMesAtual(e.target.value)}
+                  className="text-sm font-medium bg-transparent border-none outline-none cursor-pointer px-1">
+                  {Array.from({ length: 24 }, (_, i) => {
+                    const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - 12 + i);
+                    const val = toISOMonth(d);
+                    const lbl = `${MESES_SHORT[d.getMonth()]}/${d.getFullYear()}`;
+                    return <option key={val} value={val}>{lbl}</option>;
+                  })}
+                </select>
+                <button onClick={() => navMes(1)} className="text-muted-foreground hover:text-foreground p-1"><ChevronRight className="h-4 w-4" /></button>
+              </div>
+              <div className="flex gap-1.5">
+                {(["todos","open","expired","billed"] as const).map(f => (
+                  <button key={f} onClick={() => setFiltro(f)}
+                    className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${filtro===f ? "bg-primary text-primary-foreground border-primary" : "text-muted-foreground hover:text-foreground border-border"}`}>
+                    {{todos:"Todos",open:"Em aberto",expired:"Vencidos",billed:"Pagos"}[f]}
+                  </button>
+                ))}
+              </div>
+              {/* legenda */}
+              <div className="flex items-center gap-3 ml-auto text-xs text-muted-foreground">
+                <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-gray-400 inline-block"/>{" "}Aluguel</span>
+                <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-blue-500 inline-block"/>{" "}Acordo</span>
+              </div>
+            </div>
 
-          {/* Parcelas de acordo integradas ao calendário */}
-          {acordosAtivos.length > 0 && (
-            <div className="mt-4 space-y-2">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
-                <Handshake className="h-3.5 w-3.5 text-blue-500" />
-                Parcelas de acordo
-              </p>
-              {acordosAtivos.map((acordo: any) => {
-                const inq = Array.isArray(acordo.inquilinos) ? acordo.inquilinos[0] : acordo.inquilinos;
-                const im = Array.isArray(inq?.imoveis) ? inq.imoveis[0] : inq?.imoveis;
-                return (acordo.parcelas_acordo || [])
-                  .sort((a: any, b: any) => a.numero - b.numero)
-                  .map((p: any) => {
-                    const [py,pm,pd] = p.data_vencimento.split("-").map(Number);
-                    const venc = new Date(py, pm-1, pd);
-                    const diasAtr = Math.max(0, Math.floor((new Date().getTime() - venc.getTime()) / 86400000));
-                    const isExpired = p.situation === "expired" || (p.situation === "open" && diasAtr > 0);
-                    const isBilled = p.situation === "billed";
-                    return (
-                      <Card key={p.id} className={isExpired && !isBilled ? "border-l-4 border-l-blue-500" : ""}>
-                        <CardContent className="p-4">
-                          <div className="grid grid-cols-[2fr_1.2fr_1fr_auto] items-center gap-4">
-                            <div>
-                              <p className="font-medium text-sm">{inq?.nome_completo}</p>
-                              <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-                                <Building2 className="h-3 w-3" />{im?.titulo}
-                              </p>
-                            </div>
-                            <div>
-                              <Badge variant="outline" className={`text-blue-700 border-blue-300 bg-blue-50 ${isBilled ? "opacity-60" : ""}`}>
-                                <Handshake className="h-3 w-3 mr-1" />Parcela {p.numero}/{acordo.num_parcelas}
-                              </Badge>
-                            </div>
-                            <div>
-                              <p className="text-sm font-medium">{fmtBRL(p.valor)}</p>
-                              <p className="text-xs text-muted-foreground">vence {fmtData(p.data_vencimento)}</p>
-                            </div>
-                            <div>
-                              {isBilled && <span className="text-xs text-green-600 font-medium flex items-center gap-1"><CheckCircle2 className="h-3.5 w-3.5"/>Pago</span>}
-                              {!isBilled && (
-                                <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white text-xs"
-                                  onClick={() => { setModalInq(inq as any); setModalComp(null); setModalMes(toISOMonth(new Date())); setModalOpen(true); }}>
-                                  Registrar
-                                </Button>
+            {/* lista unificada */}
+            <div className="space-y-2">
+              {items.length === 0 && (
+                <div className="text-center py-12 text-muted-foreground text-sm">Nenhum lançamento para este mês.</div>
+              )}
+              {items
+                .filter(item => filtro === "todos" || item.situation === filtro)
+                .map(item => {
+                  const isAcordo = item.tipo === "acordo";
+                  const sit = item.situation;
+                  const borderColor = isAcordo
+                    ? sit==="expired" ? "border-l-4 border-l-blue-600"
+                    : sit==="billed" ? ""
+                    : "border-l-4 border-l-blue-300"
+                    : sit==="expired" ? "border-l-4 border-l-red-500"
+                    : "";
+
+                  return (
+                    <Card key={item.key} className={borderColor}>
+                      <CardContent className="p-4">
+                        <div className="grid grid-cols-[2fr_1.5fr_1fr_auto] items-center gap-4">
+                          {/* nome + imóvel + tipo */}
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <p className="font-medium text-sm">{item.nome}</p>
+                              {isAcordo && (
+                                <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 border border-blue-200">
+                                  ACORDO {item.parcela?.numero}/{item.acordo?.num_parcelas}
+                                </span>
                               )}
                             </div>
+                            <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                              <Building2 className="h-3 w-3" />{item.imovelTitulo}
+                            </p>
                           </div>
-                        </CardContent>
-                      </Card>
-                    );
-                  });
-              })}
+
+                          {/* situação */}
+                          <div>
+                            {sit==="billed" && <Badge variant="outline" className="text-green-600 border-green-300 bg-green-50"><CheckCircle2 className="h-3 w-3 mr-1"/>Pago {item.comp?.data_pagamento ? fmtData(item.comp.data_pagamento) : item.parcela?.data_pagamento ? fmtData(item.parcela.data_pagamento) : ""}</Badge>}
+                            {sit==="expired" && <Badge variant="outline" className={isAcordo ? "text-blue-700 border-blue-300 bg-blue-50" : "text-red-600 border-red-300 bg-red-50"}><AlertCircle className="h-3 w-3 mr-1"/>Vencido — {item.dias}d</Badge>}
+                            {sit==="open" && <Badge variant="outline" className="text-blue-600 border-blue-300 bg-blue-50"><Clock className="h-3 w-3 mr-1"/>Vence {fmtData(item.dataVencimento)}</Badge>}
+                            {sit==="em_acordo" && <Badge variant="outline" className="text-blue-700 border-blue-400 bg-blue-100"><Handshake className="h-3 w-3 mr-1"/>Em acordo</Badge>}
+                          </div>
+
+                          {/* valor */}
+                          <div>
+                            <p className={`text-sm font-medium ${sit==="expired" ? isAcordo ? "text-blue-700" : "text-red-600" : ""}`}>
+                              {fmtBRL(item.valor)}
+                            </p>
+                            {sit==="billed" && (item.comp?.forma_pagamento || item.parcela?.forma_pagamento) && (
+                              <p className="text-xs text-muted-foreground">{formaLabel(item.comp?.forma_pagamento || item.parcela?.forma_pagamento)}</p>
+                            )}
+                          </div>
+
+                          {/* ações */}
+                          <div className="flex gap-2 flex-wrap justify-end">
+                            {sit !== "billed" && sit !== "em_acordo" && !isAcordo && (
+                              <>
+                                {sit==="expired" && (
+                                  <>
+                                    <a href={whatsappLink(item.inq!,item.valor,mesAtual,item.dias)} target="_blank" rel="noreferrer">
+                                      <Button size="sm" variant="outline" className="text-green-600 border-green-400 px-2">
+                                        <MessageCircle className="h-4 w-4" />
+                                      </Button>
+                                    </a>
+                                    <Button size="sm" variant="outline" className="text-blue-600 border-blue-300"
+                                      onClick={() => {
+                                        const vencidos = comprovantes.filter(cv => cv.inquilino_id === item.inq!.id && cv.situation==="expired");
+                                        setAcordoInq(item.inq!); setAcordoComps(vencidos); setAcordoOpen(true);
+                                      }}>🤝</Button>
+                                    {item.dias >= 20 && (
+                                      <NotificacaoExtrajudicialBtn
+                                        inquilinoId={item.inq!.id} imovelId={item.inq!.imovel_id}
+                                        nomeInquilino={item.nome} docInquilino={item.inq!.cpf||item.inq!.cnpj||""}
+                                        imovelTitulo={item.imovelTitulo}
+                                        imovelEndereco={`${item.inq!.imoveis?.endereco_rua||""}, ${item.inq!.imoveis?.endereco_numero||""}`}
+                                        comprovantesVencidos={comprovantes.filter(cv=>cv.inquilino_id===item.inq!.id&&cv.situation==="expired")}
+                                        diasAtraso={item.dias} valorTotal={item.valor}
+                                      />
+                                    )}
+                                  </>
+                                )}
+                                <Button size="sm" onClick={() => abrirModal(item.inq!, item.comp, mesAtual)}>Registrar</Button>
+                              </>
+                            )}
+                            {sit !== "billed" && isAcordo && (
+                              <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white"
+                                onClick={() => { setModalInq(item.inq as any); setModalComp(null); setModalMes(mesAtual); setModalOpen(true); }}>
+                                Registrar
+                              </Button>
+                            )}
+                            {sit==="billed" && !isAcordo && item.comp?.pdf_url && (
+                              <a href={item.comp.pdf_url} target="_blank" rel="noreferrer">
+                                <Button size="sm" variant="outline"><FileText className="h-4 w-4 mr-1"/>PDF</Button>
+                              </a>
+                            )}
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
             </div>
-          )}
-        </>
-      )}
+          </>
+        );
+      })()}
 
       {/* ══════════ ABA NOTIFICAÇÕES ══════════ */}
       {aba === "notificacoes" && (
