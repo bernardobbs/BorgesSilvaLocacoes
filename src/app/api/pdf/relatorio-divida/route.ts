@@ -198,8 +198,8 @@ export async function POST(request: NextRequest) {
     const pdfBuffer = Buffer.from(doc.output("arraybuffer"));
     const fileName = `${user.id}/${imovel_id}/encerramentos/${Date.now()}-divida-${nome_inquilino.normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-zA-Z0-9-_]/g,"-").replace(/-+/g,"-").toLowerCase()}.pdf`;
 
-    const danos = parseFloat(String(danos||0)) || 0;
-    const garantia_executada_val = parseFloat(String(garantia_executada||0)) || 0;
+    const danosVal = parseFloat(String(danos||0)) || 0;
+    const garantiaVal = parseFloat(String(garantia_executada||0)) || 0;
 
     const { error: uploadError } = await supabase.storage
       .from("imoveis-fotos")
