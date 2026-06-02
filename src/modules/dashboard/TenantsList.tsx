@@ -195,14 +195,22 @@ export default function TenantsList({ initialData = [], initialLoading = true, s
     <>
       <div className="space-y-6">
         <div className="flex items-center justify-between mb-2">
-        <div className="flex-1"> 
-          title="Inquilinos" 
-          subtitle={
-            tenants.length === 0
-              ? 'Nenhum inquilino cadastrado'
-              : `${tenants.length} inquilino${tenants.length !== 1 ? 's' : ''} cadastrado${tenants.length !== 1 ? 's' : ''}`
-          }
-        />
+          <div className="flex-1">
+            <DashboardHeader
+              title="Inquilinos"
+              subtitle={
+                tenants.length === 0
+                  ? 'Nenhum inquilino cadastrado'
+                  : `${tenants.length} inquilino${tenants.length !== 1 ? 's' : ''} cadastrado${tenants.length !== 1 ? 's' : ''}`
+              }
+            />
+          </div>
+          <Link href="/dashboard/inquilinos/inativos">
+            <Button variant="outline" size="sm">
+              <span className="text-muted-foreground">Ex-inquilinos →</span>
+            </Button>
+          </Link>
+        </div>
 
         <FilterBar
           searchQuery={searchQuery}
