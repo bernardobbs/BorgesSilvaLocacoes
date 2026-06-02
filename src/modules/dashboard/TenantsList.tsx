@@ -194,7 +194,8 @@ export default function TenantsList({ initialData = [], initialLoading = true, s
   return (
     <>
       <div className="space-y-6">
-        <DashboardHeader 
+        <div className="flex items-center justify-between mb-2">
+        <div className="flex-1"> 
           title="Inquilinos" 
           subtitle={
             tenants.length === 0

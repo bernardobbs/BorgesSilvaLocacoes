@@ -78,6 +78,7 @@ export default function TenantDetails() {
   const [error, setError] = useState<string | null>(null);
   const [showTerminateDialog, setShowTerminateDialog] = useState(false);
   const [historicoNotif, setHistoricoNotif] = useState<any[]>([]);
+  const [historicoPag, setHistoricoPag] = useState<any[]>([]);
   const [isTerminating, setIsTerminating] = useState(false);
 
   useEffect(() => {
@@ -85,6 +86,16 @@ export default function TenantDetails() {
       loadTenantData();
     }
   }, [id]);
+
+  const loadHistoricoPag = async () => {
+    if (!id) return;
+    const { data } = await supabase
+      .from("comprovantes")
+      .select("id, mes_referencia, valor, valor_multa, valor_juros, situation, data_vencimento, data_pagamento, forma_pagamento")
+      .eq("inquilino_id", id)
+      .order("mes_referencia", { ascending: false });
+    setHistoricoPag(data || []);
+  };
 
   const loadHistoricoNotif = async () => {
     if (!id) return;
