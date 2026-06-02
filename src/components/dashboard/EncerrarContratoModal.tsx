@@ -41,13 +41,20 @@ export default function EncerrarContratoModal({ open, onClose, onSuccess, inquil
   const [motivo, setMotivo] = useState("desocupacao_voluntaria");
   const [obs, setObs] = useState("");
   const [pdfUrl, setPdfUrl] = useState<string|null>(null);
+  const [danoValor, setDanoValor] = useState("0");
+  const [danoDesc, setDanoDesc] = useState("");
+  const [garantiaExec, setGarantiaExec] = useState("0");
+  const [garantiaObs, setGarantiaObs] = useState("");
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState<"form"|"confirmar">("form");
 
   const vencidos = useMemo(() => comprovantes.filter(c => c.situation !== "billed"), [comprovantes]);
   const pagas = useMemo(() => comprovantes.filter(c => c.situation === "billed"), [comprovantes]);
   const divida = useMemo(() => vencidos.reduce((s,c) => s+(c.valor||0)+(c.valor_multa||0)+(c.valor_juros||0), 0), [vencidos]);
-  const temDivida = divida > 0;
+  const danos = parseFloat(danoValor.replace(/[^0-9.,]/g, "").replace(",", ".")) || 0;
+  const garantia = parseFloat(garantiaExec.replace(/[^0-9.,]/g, "").replace(",", ".")) || 0;
+  const dividaLiquida = Math.max(0, divida + danos - garantia);
+  const temDivida = dividaLiquida > 0 || divida > 0;
 
   async function gerarRelatorio() {
     try {
@@ -60,7 +67,10 @@ export default function EncerrarContratoModal({ open, onClose, onSuccess, inquil
           imovel_titulo: imovelTitulo, imovel_endereco: imovelEndereco,
           data_inicio: dataInicio, data_desocupacao: dataDesocupacao,
           motivo_encerramento: motivo, comprovantes,
-          divida_total: divida, obs,
+          divida_total: divida, divida_liquida: dividaLiquida,
+          danos, dano_descricao: danoDesc,
+          garantia_executada: garantia, garantia_obs: garantiaObs,
+          obs,
         }),
       });
       const json = await res.json();
@@ -80,7 +90,10 @@ export default function EncerrarContratoModal({ open, onClose, onSuccess, inquil
         body: JSON.stringify({
           inquilino_id: inquilinoId, imovel_id: imovelId,
           data_desocupacao: dataDesocupacao, motivo_encerramento: motivo,
-          divida_residual: divida, relatorio_pdf_url: pdfUrl,
+          divida_residual: divida, divida_liquida: dividaLiquida,
+          vistoria_danos: danos, vistoria_descricao: danoDesc || null,
+          garantia_executada: garantia, garantia_obs: garantiaObs || null,
+          relatorio_pdf_url: pdfUrl,
           obs_encerramento: obs || null,
         }),
       });
@@ -88,7 +101,7 @@ export default function EncerrarContratoModal({ open, onClose, onSuccess, inquil
       if (!res.ok) throw new Error(json.error);
       toast.success("Contrato encerrado!", {
         description: temDivida
-          ? `Imóvel liberado. Dívida de ${fmtBRL(divida)} registrada no histórico.`
+? `Imóvel liberado. Dívida líquida de ${fmtBRL(dividaLiquida)} registrada no histórico.`
           : "Imóvel liberado. Contrato encerrado sem pendências.",
       });
       onSuccess(); onClose();
@@ -137,6 +150,81 @@ export default function EncerrarContratoModal({ open, onClose, onSuccess, inquil
           </div>
 
           {/* Formulário */}
+          {/* Vistoria de saída */}
+          <div className="border rounded-lg p-4 space-y-3 bg-muted/30">
+            <p className="text-sm font-medium flex items-center gap-2">
+              🔍 Vistoria de saída
+              <span className="text-xs font-normal text-muted-foreground">(opcional)</span>
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Danos ao imóvel (R$)</Label>
+                <input
+                  type="number" min="0" step="0.01"
+                  value={danoValor}
+                  onChange={e => setDanoValor(e.target.value)}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  placeholder="0,00"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Garantia executada (R$)</Label>
+                <input
+                  type="number" min="0" step="0.01"
+                  value={garantiaExec}
+                  onChange={e => setGarantiaExec(e.target.value)}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  placeholder="0,00"
+                />
+                {garantia > 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    Garantia: {props.garantia || "não informada"}
+                  </p>
+                )}
+              </div>
+              {danos > 0 && (
+                <div className="space-y-1.5 col-span-2">
+                  <Label className="text-xs">Descrição dos danos</Label>
+                  <Textarea value={danoDesc} onChange={e => setDanoDesc(e.target.value)}
+                    placeholder="Ex: pintura danificada, vidro quebrado, portão arrombado..."
+                    className="min-h-[60px]" />
+                </div>
+              )}
+              {garantia > 0 && (
+                <div className="space-y-1.5 col-span-2">
+                  <Label className="text-xs">Obs. da garantia</Label>
+                  <Textarea value={garantiaObs} onChange={e => setGarantiaObs(e.target.value)}
+                    placeholder="Ex: caução de R$ 1.800 devolvido parcialmente, fiador quitou 1 mês..."
+                    className="min-h-[60px]" />
+                </div>
+              )}
+            </div>
+            {/* Resumo do cálculo */}
+            {(danos > 0 || garantia > 0) && (
+              <div className="rounded bg-background border p-3 text-sm space-y-1">
+                <div className="flex justify-between text-muted-foreground">
+                  <span>Parcelas em aberto</span><span>{fmtBRL(divida)}</span>
+                </div>
+                {danos > 0 && (
+                  <div className="flex justify-between text-orange-700">
+                    <span>+ Danos ao imóvel</span><span>{fmtBRL(danos)}</span>
+                  </div>
+                )}
+                {garantia > 0 && (
+                  <div className="flex justify-between text-green-700">
+                    <span>− Garantia executada</span><span>−{fmtBRL(garantia)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between font-semibold border-t pt-1 mt-1">
+                  <span>Dívida líquida</span>
+                  <span className={dividaLiquida > 0 ? "text-red-700" : "text-green-700"}>
+                    {fmtBRL(dividaLiquida)}
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <Label>Data de saída</Label>
@@ -185,7 +273,7 @@ export default function EncerrarContratoModal({ open, onClose, onSuccess, inquil
             <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
             <p className="text-xs text-amber-800">
               Ao confirmar: o inquilino será marcado como <strong>inativo</strong>, o imóvel voltará para <strong>disponível</strong>
-              {temDivida ? ` e a dívida de ${fmtBRL(divida)} ficará registrada no histórico.` : "."}
+              {dividaLiquida > 0 ? ` e a dívida líquida de ${fmtBRL(dividaLiquida)} ficará registrada no histórico.` : "."}
               {" "}Esta ação não pode ser desfeita facilmente.
             </p>
           </div>

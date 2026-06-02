@@ -37,7 +37,10 @@ export async function POST(request: NextRequest) {
       inquilino_id, imovel_id, nome_inquilino, doc_inquilino,
       imovel_titulo, imovel_endereco,
       data_inicio, data_desocupacao, motivo_encerramento,
-      comprovantes, divida_total, obs,
+      comprovantes, divida_total, divida_liquida,
+      danos, dano_descricao,
+      garantia_executada, garantia_obs,
+      obs,
     } = await request.json();
 
     const hoje = new Date();
@@ -126,12 +129,42 @@ export async function POST(request: NextRequest) {
     doc.setFont("helvetica","normal"); doc.setFontSize(10); doc.setTextColor(30,30,30);
     doc.text("Total pago:", L, y);
     doc.setTextColor(30,120,60);
-    doc.text(fmtBRL(totalPago), R, y, { align:"right" });
-    y += 7;
+    doc.text(fmtBRL(totalPago), R, y, { align:"right" }); y += 7;
+
     doc.setTextColor(30,30,30);
-    doc.text("Total em aberto (c/ encargos):", L, y);
-    doc.setFont("helvetica","bold"); doc.setTextColor(180,0,0);
-    doc.text(fmtBRL(divida_total || totalDevido), R, y, { align:"right" });
+    doc.text("Parcelas em aberto (c/ encargos):", L, y);
+    doc.setTextColor(180,0,0);
+    doc.text(fmtBRL(totalDevido), R, y, { align:"right" }); y += 7;
+
+    if (danos > 0) {
+      doc.setTextColor(180,100,0); doc.setFont("helvetica","normal");
+      doc.text("+ Danos ao imóvel:", L, y);
+      doc.text(fmtBRL(danos), R, y, { align:"right" }); y += 5;
+      if (dano_descricao) {
+        doc.setFontSize(8); doc.setTextColor(120,80,0);
+        const dl=doc.splitTextToSize(`  Descrição: ${dano_descricao}`,W);
+        doc.text(dl,L,y); y+=dl.length*4.5;
+      }
+      y += 2;
+    }
+
+    const garantiaVal = garantia_executada || 0;
+    if (garantiaVal > 0) {
+      doc.setFontSize(10); doc.setTextColor(30,120,60); doc.setFont("helvetica","normal");
+      doc.text("− Garantia executada:", L, y);
+      doc.text(`−${fmtBRL(garantiaVal)}`, R, y, { align:"right" }); y += 5;
+      if (garantia_obs) {
+        doc.setFontSize(8); doc.setTextColor(30,100,60);
+        const gl=doc.splitTextToSize(`  ${garantia_obs}`,W);
+        doc.text(gl,L,y); y+=gl.length*4.5;
+      }
+      y += 2;
+    }
+
+    linha(); y += 5;
+    doc.setFont("helvetica","bold"); doc.setFontSize(11); doc.setTextColor(180,0,0);
+    doc.text("DÍVIDA LÍQUIDA A COBRAR:", L, y);
+    doc.text(fmtBRL(divida_liquida || (totalDevido + (danos||0) - garantiaVal)), R, y, { align:"right" });
     y += 12;
 
     if (obs) {
@@ -164,6 +197,9 @@ export async function POST(request: NextRequest) {
 
     const pdfBuffer = Buffer.from(doc.output("arraybuffer"));
     const fileName = `${user.id}/${imovel_id}/encerramentos/${Date.now()}-divida-${nome_inquilino.normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-zA-Z0-9-_]/g,"-").replace(/-+/g,"-").toLowerCase()}.pdf`;
+
+    const danos = parseFloat(String(danos||0)) || 0;
+    const garantia_executada_val = parseFloat(String(garantia_executada||0)) || 0;
 
     const { error: uploadError } = await supabase.storage
       .from("imoveis-fotos")

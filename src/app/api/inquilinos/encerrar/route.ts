@@ -16,14 +16,21 @@ export async function POST(request: NextRequest) {
 
     const {
       inquilino_id, imovel_id, data_desocupacao,
-      motivo_encerramento, divida_residual,
+      motivo_encerramento, divida_residual, divida_liquida,
+      vistoria_danos, vistoria_descricao,
+      garantia_executada, garantia_obs,
       relatorio_pdf_url, obs_encerramento,
     } = await request.json();
 
     // Marcar inquilino como inativo
     const { error: e1 } = await supabase.from("inquilinos").update({
       status: "inativo", data_desocupacao, motivo_encerramento,
-      divida_residual, relatorio_pdf_url,
+      divida_residual, divida_liquida: divida_liquida || divida_residual,
+      vistoria_danos: vistoria_danos || 0,
+      vistoria_descricao: vistoria_descricao || null,
+      garantia_executada: garantia_executada || 0,
+      garantia_obs: garantia_obs || null,
+      relatorio_pdf_url,
       obs_encerramento: obs_encerramento || null,
       encerrado_por: user.id,
       data_fim: data_desocupacao,
