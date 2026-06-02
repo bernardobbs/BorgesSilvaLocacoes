@@ -230,7 +230,7 @@ export async function POST(request: NextRequest) {
         const pdfBuffer = Buffer.from(doc.output('arraybuffer'));
 
         // Upload para Supabase Storage
-        const fileName = `${userId}/${propertyId}/comprovantes/${Date.now()}-${data.tenantName.replace(/\s+/g, '-')}.pdf`;
+        const fileName = `${userId}/${propertyId}/comprovantes/${Date.now()}-${data.tenantName.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9-_]/g,'-').replace(/-+/g,'-').toLowerCase()}.pdf`;
 
         const { error: uploadError } = await supabase.storage
             .from('imoveis-fotos')

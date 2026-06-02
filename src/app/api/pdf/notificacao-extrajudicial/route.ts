@@ -179,7 +179,7 @@ export async function POST(request: NextRequest) {
 
     // ── UPLOAD ────────────────────────────────────────
     const pdfBuffer = Buffer.from(doc.output("arraybuffer"));
-    const fileName = `${user.id}/${imovel_id}/notificacoes/${Date.now()}-notificacao-${nome_inquilino.replace(/\s+/g,"-")}.pdf`;
+    const fileName = `${user.id}/${imovel_id}/notificacoes/${Date.now()}-notificacao-${nome_inquilino.normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-zA-Z0-9-_]/g,"-").replace(/-+/g,"-").toLowerCase()}.pdf`;
 
     const { error: uploadError } = await supabase.storage
       .from("imoveis-fotos")
