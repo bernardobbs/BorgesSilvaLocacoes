@@ -537,3 +537,81 @@ export function MembrosSection() {
     </Card>
   );
 }
+
+// =====================================================
+// CONFIGURAÇÃO DO LOCADOR
+// =====================================================
+export function ConfigLocadorSection() {
+  const [config, setConfig] = useState<Record<string,string>>({});
+  const [loading, setLoading] = useState(true);
+  const [salvando, setSalvando] = useState(false);
+
+  useEffect(() => { carregar(); }, []);
+
+  async function carregar() {
+    const { data } = await supabase.from("config_sistema").select("chave, valor");
+    const map: Record<string,string> = {};
+    (data||[]).forEach((r:any) => { map[r.chave] = r.valor||""; });
+    setConfig(map);
+    setLoading(false);
+  }
+
+  async function salvar() {
+    setSalvando(true);
+    try {
+      const updates = Object.entries(config).map(([chave, valor]) =>
+        supabase.from("config_sistema").upsert({ chave, valor }, { onConflict: "chave" })
+      );
+      await Promise.all(updates);
+      toast.success("Dados do locador salvos!");
+    } catch { toast.error("Erro ao salvar"); }
+    finally { setSalvando(false); }
+  }
+
+  const set = (chave: string, valor: string) =>
+    setConfig(p => ({ ...p, [chave]: valor }));
+
+  if (loading) return null;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base flex items-center gap-2">
+          <User className="h-4 w-4" /> Dados do locador
+        </CardTitle>
+        <CardDescription>
+          Usados nos PDFs gerados (recibos, dossiê jurídico, notificações). Cada imóvel pode ter um locador diferente — configure na edição do imóvel.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-1.5">
+            <Label>Nome / Razão social *</Label>
+            <Input value={config.locador_nome||""} onChange={e => set("locador_nome", e.target.value)} placeholder="Ex: Borges Silva Locações" />
+          </div>
+          <div className="space-y-1.5">
+            <Label>CPF ou CNPJ</Label>
+            <Input value={config.locador_cpf_cnpj||""} onChange={e => set("locador_cpf_cnpj", e.target.value)} placeholder="000.000.000-00" />
+          </div>
+          <div className="space-y-1.5 col-span-2">
+            <Label>Endereço</Label>
+            <Input value={config.locador_endereco||""} onChange={e => set("locador_endereco", e.target.value)} placeholder="Rua, número, cidade – UF" />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Telefone</Label>
+            <Input value={config.locador_telefone||""} onChange={e => set("locador_telefone", e.target.value)} placeholder="(00) 00000-0000" />
+          </div>
+          <div className="space-y-1.5">
+            <Label>E-mail</Label>
+            <Input value={config.locador_email||""} onChange={e => set("locador_email", e.target.value)} placeholder="contato@exemplo.com" />
+          </div>
+        </div>
+        <div className="flex justify-end">
+          <Button onClick={salvar} disabled={salvando}>
+            {salvando ? "Salvando..." : "Salvar dados do locador"}
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}

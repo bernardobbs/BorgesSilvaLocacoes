@@ -25,18 +25,29 @@ export async function POST(request: NextRequest) {
     const { inquilino_id } = await request.json();
 
     // Buscar todos os dados do inquilino
-    const [inqRes, compRes, notifRes, acordoRes] = await Promise.all([
+    const [inqRes, compRes, notifRes, acordoRes, configRes] = await Promise.all([
       supabase.from("inquilinos").select(`
         *, imoveis(titulo, endereco_rua, endereco_numero, endereco_bairro, endereco_cidade, endereco_estado)
       `).eq("id", inquilino_id).single(),
       supabase.from("comprovantes").select("*").eq("inquilino_id", inquilino_id).order("mes_referencia"),
       supabase.from("notificacoes_cobranca").select("*, profiles(nome_completo), config_notificacoes(label)").eq("inquilino_id", inquilino_id).order("enviado_em"),
       supabase.from("acordos").select("*, parcelas_acordo(*)").eq("inquilino_id", inquilino_id).order("created_at"),
+      supabase.from("config_sistema").select("chave, valor").in("chave", ["locador_nome","locador_cpf_cnpj","locador_endereco","locador_telefone","locador_email"]),
     ]);
 
     const inq = inqRes.data;
     if (!inq) return NextResponse.json({ error:"Inquilino não encontrado" },{status:404});
     const im = Array.isArray(inq.imoveis) ? inq.imoveis[0] : inq.imoveis;
+
+    // Montar config do locador
+    const cfgMap: Record<string,string> = {};
+    (configRes.data||[]).forEach((r:any) => { cfgMap[r.chave] = r.valor||""; });
+    const locadorNome  = (im as any)?.locador_nome      || cfgMap.locador_nome      || "Borges Silva Locações";
+    const locadorDoc   = (im as any)?.locador_cpf_cnpj  || cfgMap.locador_cpf_cnpj  || "";
+    const locadorEnd   = cfgMap.locador_endereco || "Campo Maior – PI";
+    const locadorTel   = (im as any)?.locador_telefone   || cfgMap.locador_telefone  || "";
+    const locadorEmail = cfgMap.locador_email   || "";
+
     const comps = compRes.data || [];
     const notifs = notifRes.data || [];
     const acordos = acordoRes.data || [];
@@ -74,9 +85,11 @@ export async function POST(request: NextRequest) {
 
     // ── PARTE LOCADORA ────────────────────────────────
     secao("1. PARTE LOCADORA (REQUERENTE)");
-    campo("Razão:", "Borges Silva Locações");
-    campo("Endereço:", "Campo Maior – PI");
-    campo("Contato:", "contato@borgessilvalocacoes.com.br");
+    campo("Nome/Razão:", locadorNome);
+    if(locadorDoc) campo("CPF/CNPJ:", locadorDoc);
+    campo("Endereço:", locadorEnd);
+    if(locadorTel) campo("Telefone:", locadorTel);
+    if(locadorEmail) campo("Contato:", locadorEmail);
     y+=4; checkPage();
 
     // ── PARTE LOCATÁRIA ───────────────────────────────
@@ -195,11 +208,11 @@ export async function POST(request: NextRequest) {
     y+=8; linha();
     doc.line(55,y+15,155,y+15); y+=20;
     doc.setFont("helvetica","bold"); doc.setFontSize(9); doc.setTextColor(30,30,30);
-    doc.text("Borges Silva Locações",105,y,{align:"center"});
+    doc.text(locadorNome,105,y,{align:"center"});
     doc.setFont("helvetica","normal"); doc.setFontSize(8); doc.setTextColor(100,100,100);
     doc.text("Locador / Representante Legal",105,y+5,{align:"center"});
     doc.setFontSize(7); doc.setTextColor(160,160,160);
-    doc.text(`Gerado em ${dataExtenso(hoje)} · Borges Silva Locações`,105,287,{align:"center"});
+    doc.text(`Gerado em ${dataExtenso(hoje)} · ${locadorNome}`,105,287,{align:"center"});
 
     // ── UPLOAD ────────────────────────────────────────
     const safe = inq.nome_completo.normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-zA-Z0-9-_]/g,"-").replace(/-+/g,"-").toLowerCase();
