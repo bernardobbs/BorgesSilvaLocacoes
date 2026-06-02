@@ -1,6 +1,7 @@
 // Based on Lugo — Copyright (c) 2024 Renilson Medeiros — MIT License
 "use client";
 import AcordosEmAndamento from "@/components/dashboard/AcordosEmAndamento";
+import NotificacoesCobranca from "@/components/dashboard/NotificacoesCobranca";
 import AcordoModal from "@/components/dashboard/AcordoModal";
 import NotificacaoExtrajudicialBtn from "@/components/dashboard/NotificacaoExtrajudicialBtn";
 import { useState, useMemo, useCallback } from "react";
@@ -13,7 +14,7 @@ import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import {
   ChevronLeft, ChevronRight, AlertCircle, Clock, CheckCircle2,
-  Building2, FileText, MessageCircle, User, History, Handshake
+  Building2, FileText, MessageCircle, User, History, Handshake, Calendar, Bell
 } from "lucide-react";
 
 /* ─────────────── types ─────────────── */
@@ -30,7 +31,7 @@ interface Comprovante {
   data_vencimento: string; data_pagamento: string | null; forma_pagamento: string | null;
   pdf_url: string | null; descricao: string | null; created_at: string;
 }
-interface Props { initialInquilinos: Inquilino[]; initialComprovantes: Comprovante[]; userId: string; acordosAtivos?: any[]; inquilinosComAcordo?: Set<string>; }
+interface Props { initialInquilinos: Inquilino[]; initialComprovantes: Comprovante[]; userId: string; acordosAtivos?: any[]; inquilinosComAcordo?: Set<string>; notificacoes?: any[]; }
 
 /* ─────────────── helpers ─────────────── */
 const MESES = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
@@ -118,12 +119,12 @@ function whatsappLink(inq: Inquilino, total: number, mes: string, dias: number) 
 }
 
 /* ─────────────── component ─────────────── */
-export default function PagamentosList({ initialInquilinos, initialComprovantes, userId, acordosAtivos = [], inquilinosComAcordo = new Set() }: Props) {
+export default function PagamentosList({ initialInquilinos, initialComprovantes, userId, acordosAtivos = [], inquilinosComAcordo = new Set(), notificacoes = [] }: Props) {
   const hoje = new Date();
   const [mesAtual, setMesAtual] = useState(toISOMonth(hoje));
   const [comprovantes, setComprovantes] = useState<Comprovante[]>(initialComprovantes);
   const [filtro, setFiltro] = useState<"todos"|"open"|"expired"|"billed">("todos");
-  const [aba, setAba] = useState<"mensal"|"inquilino">("mensal");
+  const [aba, setAba] = useState<"calendario"|"inquilino"|"notificacoes">("calendario");
   const [inquilinoSel, setInquilinoSel] = useState<Inquilino | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [modalInq, setModalInq] = useState<Inquilino | null>(null);
@@ -224,26 +225,22 @@ export default function PagamentosList({ initialInquilinos, initialComprovantes,
 
       {/* abas */}
       <div className="flex border-b">
-        {(["mensal","inquilino"] as const).map(a => (
-          <button key={a} onClick={() => setAba(a)}
-            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${aba===a ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}>
-            {a === "mensal" ? <><Building2 className="inline h-4 w-4 mr-1.5" />Visão mensal</> : <><User className="inline h-4 w-4 mr-1.5" />Por inquilino</>}
+        {([
+            ["calendario", <><Calendar className="inline h-4 w-4 mr-1.5" />Calendário de pagamentos</>],
+            ["inquilino",  <><User className="inline h-4 w-4 mr-1.5" />Por inquilino</>],
+            ["notificacoes", <><Bell className="inline h-4 w-4 mr-1.5" />Notificações{notificacoes.length > 0 ? <span className="ml-1.5 bg-orange-100 text-orange-700 text-[10px] font-bold px-1.5 py-0.5 rounded-full">{notificacoes.length}</span> : null}</>],
+          ] as const).map(([a, label]) => (
+          <button key={a} onClick={() => setAba(a as any)}
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors flex items-center ${aba===a ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}>
+            {label}
           </button>
         ))}
       </div>
 
       {/* ══════════ ABA MENSAL ══════════ */}
-      {aba === "mensal" && (
+      {aba === "calendario" && (
         <>
-          {/* acordos em andamento */}
-          {acordosAtivos.length > 0 && (
-            <AcordosEmAndamento
-              acordos={acordosAtivos}
-              onPagamento={recarregar}
-            />
-          )}
-
-          {/* cards sumário */}
+          {/* cards sumário */
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {[
               { label:"Total a receber", val: sumario.totalReceber, cls:"text-foreground" },
@@ -372,7 +369,69 @@ export default function PagamentosList({ initialInquilinos, initialComprovantes,
               );
             })}
           </div>
+
+          {/* Parcelas de acordo integradas ao calendário */}
+          {acordosAtivos.length > 0 && (
+            <div className="mt-4 space-y-2">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+                <Handshake className="h-3.5 w-3.5 text-blue-500" />
+                Parcelas de acordo
+              </p>
+              {acordosAtivos.map((acordo: any) => {
+                const inq = Array.isArray(acordo.inquilinos) ? acordo.inquilinos[0] : acordo.inquilinos;
+                const im = Array.isArray(inq?.imoveis) ? inq.imoveis[0] : inq?.imoveis;
+                return (acordo.parcelas_acordo || [])
+                  .sort((a: any, b: any) => a.numero - b.numero)
+                  .map((p: any) => {
+                    const [py,pm,pd] = p.data_vencimento.split("-").map(Number);
+                    const venc = new Date(py, pm-1, pd);
+                    const diasAtr = Math.max(0, Math.floor((new Date().getTime() - venc.getTime()) / 86400000));
+                    const isExpired = p.situation === "expired" || (p.situation === "open" && diasAtr > 0);
+                    const isBilled = p.situation === "billed";
+                    return (
+                      <Card key={p.id} className={isExpired && !isBilled ? "border-l-4 border-l-blue-500" : ""}>
+                        <CardContent className="p-4">
+                          <div className="grid grid-cols-[2fr_1.2fr_1fr_auto] items-center gap-4">
+                            <div>
+                              <p className="font-medium text-sm">{inq?.nome_completo}</p>
+                              <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                                <Building2 className="h-3 w-3" />{im?.titulo}
+                              </p>
+                            </div>
+                            <div>
+                              <Badge variant="outline" className={`text-blue-700 border-blue-300 bg-blue-50 ${isBilled ? "opacity-60" : ""}`}>
+                                <Handshake className="h-3 w-3 mr-1" />Parcela {p.numero}/{acordo.num_parcelas}
+                              </Badge>
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium">{fmtBRL(p.valor)}</p>
+                              <p className="text-xs text-muted-foreground">vence {fmtData(p.data_vencimento)}</p>
+                            </div>
+                            <div>
+                              {isBilled && <span className="text-xs text-green-600 font-medium flex items-center gap-1"><CheckCircle2 className="h-3.5 w-3.5"/>Pago</span>}
+                              {!isBilled && (
+                                <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white text-xs"
+                                  onClick={() => { setModalInq(inq as any); setModalComp(null); setModalMes(toISOMonth(new Date())); setModalOpen(true); }}>
+                                  Registrar
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  });
+              })}
+            </div>
+          )}
         </>
+      )}
+
+      {/* ══════════ ABA NOTIFICAÇÕES ══════════ */}
+      {aba === "notificacoes" && (
+        <div className="space-y-4">
+          <NotificacoesCobranca notificacoes={notificacoes} />
+        </div>
       )}
 
       {/* ══════════ ABA POR INQUILINO ══════════ */}

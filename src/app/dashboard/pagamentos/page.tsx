@@ -2,7 +2,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import PagamentosList from "@/modules/dashboard/PagamentosList";
-import NotificacoesCobranca from "@/components/dashboard/NotificacoesCobranca";
 
 export default async function PagamentosPage() {
   const supabase = await createClient();
@@ -79,9 +78,8 @@ export default async function PagamentosPage() {
   );
 
   return (
-    <div className="space-y-4">
-      <NotificacoesCobranca notificacoes={notifs} />
-      <PagamentosList acordosAtivos={(acordosAtivos || []) as any} inquilinosComAcordo={inquilinosComAcordo}
+    <PagamentosList acordosAtivos={(acordosAtivos || []) as any} inquilinosComAcordo={inquilinosComAcordo}
+        notificacoes={notifs}
       initialInquilinos={(inquilinos || []).map((i: any) => ({
         ...i,
         imoveis: Array.isArray(i.imoveis) ? i.imoveis[0] : i.imoveis,
@@ -89,6 +87,5 @@ export default async function PagamentosPage() {
       initialComprovantes={comprovantes || []}
       userId={session.user.id}
     />
-    </div>
   );
 }
