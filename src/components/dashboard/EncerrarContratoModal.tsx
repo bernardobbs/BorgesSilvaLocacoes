@@ -178,7 +178,7 @@ export default function EncerrarContratoModal({ open, onClose, onSuccess, inquil
                 />
                 {garantia > 0 && (
                   <p className="text-xs text-muted-foreground">
-                    Garantia: {props.garantia || "não informada"}
+                    Garantia contratual: {garantia > 0 ? fmtBRL(garantia) + " executados" : "não informada"}
                   </p>
                 )}
               </div>
