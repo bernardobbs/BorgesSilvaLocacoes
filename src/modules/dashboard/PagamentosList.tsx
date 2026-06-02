@@ -240,7 +240,7 @@ export default function PagamentosList({ initialInquilinos, initialComprovantes,
       {/* ══════════ ABA MENSAL ══════════ */}
       {aba === "calendario" && (
         <>
-          {/* cards sumário */
+          {/* cards sumário */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {[
               { label:"Total a receber", val: sumario.totalReceber, cls:"text-foreground" },
