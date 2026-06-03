@@ -40,6 +40,9 @@ interface TenantData {
   id: string;
   nome_completo: string;
   cpf: string;
+  cnpj?: string;
+  rg?: string;
+  tipo_pessoa?: string;
   telefone: string;
   email: string | null;
   imovel_id: string;
@@ -48,6 +51,11 @@ interface TenantData {
   data_fim: string | null;
   status: 'ativo' | 'inativo';
   observacoes: string | null;
+  valor_aluguel?: number;
+  multa_percentual?: number;
+  juros_percentual?: number;
+  garantia?: string;
+  numero_contrato?: string;
   imoveis: {
     id: string;
     titulo: string;
@@ -87,17 +95,23 @@ export default function TenantDetails() {
   useEffect(() => {
     if (id) {
       loadTenantData();
+      loadHistoricoPag();
+      loadHistoricoNotif();
+      loadAcordos();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   const loadAcordos = async () => {
     if (!id) return;
+    try {
     const { data } = await supabase
       .from("acordos")
       .select("id, valor_original, valor_acordo, desconto, num_parcelas, valor_parcela, status, observacoes, created_at, parcelas_acordo(id, numero, valor, data_vencimento, situation, data_pagamento, forma_pagamento)")
       .eq("inquilino_id", id)
       .order("created_at", { ascending: false });
     setAcordos(data || []);
+    } catch(e) { console.error("loadAcordos:", e); }
   };
 
   const loadHistoricoPag = async () => {
@@ -232,7 +246,8 @@ export default function TenantDetails() {
       }
     } catch (err: any) {
       console.error('Erro ao carregar dados:', err);
-      setError(err.message || 'Erro ao carregar dados do inquilino');
+      const msg = err?.message || err?.details || JSON.stringify(err) || 'Erro desconhecido';
+      setError(msg);
       toast.error('Erro ao carregar dados');
     } finally {
       setIsLoading(false);
@@ -333,6 +348,7 @@ export default function TenantDetails() {
           </div>
           <h3 className="mt-4 font-display text-lg font-semibold">Erro ao carregar dados</h3>
           <p className="mt-1 text-sm text-muted-foreground">{error || 'Inquilino não encontrado'}</p>
+          <p className="mt-1 text-xs text-muted-foreground">ID: {id}</p>
           <Button onClick={() => router.back()} variant="outline" className="mt-4">
             Voltar
           </Button>

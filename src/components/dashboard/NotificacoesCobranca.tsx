@@ -1,6 +1,7 @@
 // Based on Lugo — Copyright (c) 2024 Renilson Medeiros — MIT License
 "use client";
 import { useState } from "react";
+import { supabase } from "@/lib/supabase";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Bell, MessageCircle, CheckCircle2, ChevronDown, ChevronUp } from "lucide-react";
