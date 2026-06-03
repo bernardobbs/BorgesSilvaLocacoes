@@ -293,9 +293,6 @@ export default function TenantDetails() {
         })
         .eq('id', tenant.id);
 
-      if (tenantError) throw new Error(`DB error: ${tenantError.code} — ${tenantError.message} — ${tenantError.details}`);
-      if (!tenantData) throw new Error(`Inquilino não encontrado. ID: ${id}`);
-
       // Atualizar imóvel para disponível
       const { error: propertyError } = await supabase
         .from('imoveis')
