@@ -178,6 +178,19 @@ export async function POST(request: NextRequest) {
     doc.text(`Gerado em ${hoje.toLocaleDateString("pt-BR")} às ${hoje.toLocaleTimeString("pt-BR")} · Borges Silva Locações`, 105, 287, { align: "center" });
 
     // ── UPLOAD ────────────────────────────────────────
+
+    // Buscar configuração do procurador
+    const { data: cfgData } = await supabase.from("config_sistema")
+      .select("chave, valor")
+      .in("chave", ["locador_nome","locador_cpf_cnpj","procurador_ativo","procurador_nome","procurador_cpf"]);
+    const cfgMap2: Record<string,string> = {};
+    (cfgData||[]).forEach((r:any) => { cfgMap2[r.chave] = r.valor||""; });
+    const temProc = cfgMap2.procurador_ativo === "true" && !!cfgMap2.procurador_nome;
+    const nomeProprietario = cfgMap2.locador_nome || "Borges Silva Locações";
+    const cpfProprietario  = cfgMap2.locador_cpf_cnpj || "";
+    const nomeProcurador   = cfgMap2.procurador_nome || "";
+    const cpfProcurador    = cfgMap2.procurador_cpf  || "";
+
     const pdfBuffer = Buffer.from(doc.output("arraybuffer"));
     const fileName = `${user.id}/${imovel_id}/notificacoes/${Date.now()}-notificacao-${nome_inquilino.normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-zA-Z0-9-_]/g,"-").replace(/-+/g,"-").toLowerCase()}.pdf`;
 

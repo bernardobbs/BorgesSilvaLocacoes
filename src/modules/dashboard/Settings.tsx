@@ -587,10 +587,10 @@ export function ConfigLocadorSection() {
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-1.5">
             <Label>Nome / Razão social *</Label>
-            <Input value={config.locador_nome||""} onChange={e => set("locador_nome", e.target.value)} placeholder="Ex: Borges Silva Locações" />
+            <Input value={config.locador_nome||""} onChange={e => set("locador_nome", e.target.value)} placeholder="Ex: José Borges Silva" />
           </div>
           <div className="space-y-1.5">
-            <Label>CPF ou CNPJ</Label>
+            <Label>CPF</Label>
             <Input value={config.locador_cpf_cnpj||""} onChange={e => set("locador_cpf_cnpj", e.target.value)} placeholder="000.000.000-00" />
           </div>
           <div className="space-y-1.5 col-span-2">
@@ -605,6 +605,37 @@ export function ConfigLocadorSection() {
             <Label>E-mail</Label>
             <Input value={config.locador_email||""} onChange={e => set("locador_email", e.target.value)} placeholder="contato@exemplo.com" />
           </div>
+        </div>
+
+        <div className="border-t pt-4 mt-2 space-y-3">
+          <div className="flex items-center gap-2">
+            <input type="checkbox" id="proc_ativo"
+              checked={config.procurador_ativo === "true"}
+              onChange={e => set("procurador_ativo", e.target.checked ? "true" : "false")}
+              className="h-4 w-4 rounded border" />
+            <Label htmlFor="proc_ativo" className="font-normal cursor-pointer">
+              Assinar documentos como procurador / representante
+            </Label>
+          </div>
+          {config.procurador_ativo === "true" && (
+            <div className="grid grid-cols-2 gap-4 pl-6">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Nome do procurador</Label>
+                <Input value={config.procurador_nome||""} onChange={e => set("procurador_nome", e.target.value)}
+                  placeholder="Nome de quem assina" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">CPF do procurador</Label>
+                <Input value={config.procurador_cpf||""} onChange={e => set("procurador_cpf", e.target.value)}
+                  placeholder="000.000.000-00" />
+              </div>
+              <div className="space-y-1.5 col-span-2">
+                <p className="text-xs text-muted-foreground">
+                  Nos PDFs gerados aparecerá: <em>"{config.locador_nome||"[Proprietário]"}, representado(a) por {config.procurador_nome||"[Procurador]"} — procuração particular."</em>
+                </p>
+              </div>
+            </div>
+          )}
         </div>
         <div className="flex justify-end">
           <Button onClick={salvar} disabled={salvando}>
