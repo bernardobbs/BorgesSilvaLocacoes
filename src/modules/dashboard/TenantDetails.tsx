@@ -528,14 +528,7 @@ export default function TenantDetails() {
                 <FileText className="h-5 w-5 text-tertiary" />
                 Histórico
               </CardTitle>
-              {false && tenant.status === 'ativo' && (
-                <Link href={`/dashboard/comprovantes/novo?inquilino=${tenant.id}`}>
-                  <Button size="sm" className="gap-2 bg-tertiary hover:bg-tertiary/90">
-                    <Receipt className="h-4 w-4" />
-                    Gerar Comprovante
-                  </Button>
-                </Link>
-              )}
+
             </div>
           </CardHeader>
           <CardContent>
