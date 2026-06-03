@@ -23,7 +23,7 @@ interface Inquilino {
   id: string; nome_completo: string; cpf: string; cnpj: string; tipo_pessoa: string;
   endereco_rua?: string; endereco_numero?: string;
   telefone: string; valor_aluguel: number; dia_vencimento: number;
-  multa_percentual: number; juros_percentual: number; imovel_id: string; imoveis: Imovel;
+  multa_percentual: number; juros_percentual: number; imovel_id: string; imoveis: Imovel; data_inicio?: string; data_fim?: string;
 }
 interface Comprovante {
   id: string; inquilino_id: string; imovel_id: string; mes_referencia: string;
