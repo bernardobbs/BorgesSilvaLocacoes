@@ -20,32 +20,42 @@ const STATUS_LABEL: Record<string,string> = {
   alugado:"Alugado", disponivel:"Disponível", manutencao:"Manutenção"
 };
 
-export default async function ImovelDetailPage({ params }: { params: { id: string } }) {
+export default async function ImovelDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const supabase = await createClient();
+  const { id } = await params;
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) redirect("/login");
 
   const { data: imovel } = await supabase
     .from("imoveis")
     .select("*")
-    .eq("id", params.id)
-    .single();
+    .eq("id", id)
+    .eq("proprietario_id", session.user.id)
+    .maybeSingle();
 
-  if (!imovel) redirect("/dashboard/imoveis");
+  if (!imovel) {
+    return (
+      <div className="p-6 text-center">
+        <p className="text-muted-foreground">Imóvel não encontrado.</p>
+        <a href="/dashboard/imoveis" className="text-primary underline mt-2 block">Voltar para imóveis</a>
+      </div>
+    );
+  }
 
   // Inquilino ativo
   const { data: inquilino } = await supabase
     .from("inquilinos")
     .select("id, nome_completo, cpf, cnpj, tipo_pessoa, telefone, email, data_inicio, valor_aluguel, dia_vencimento, status")
-    .eq("imovel_id", params.id)
+    .eq("imovel_id", id)
     .eq("status", "ativo")
     .maybeSingle();
 
   // Histórico de comprovantes
+  // Comprovantes via imovel_id (campo existe na tabela)
   const { data: comprovantes } = await supabase
     .from("comprovantes")
     .select("id, mes_referencia, valor, valor_multa, valor_juros, situation, data_vencimento, data_pagamento, forma_pagamento")
-    .eq("imovel_id", params.id)
+    .eq("imovel_id", id)
     .order("mes_referencia", { ascending: false })
     .limit(12);
 
@@ -65,7 +75,7 @@ export default async function ImovelDetailPage({ params }: { params: { id: strin
               <span className="text-sm text-muted-foreground capitalize">{imovel.tipo}</span>
             </div>
           </div>
-          <Link href={`/dashboard/imoveis/${params.id}/editar`}>
+          <Link href={`/dashboard/imoveis/${id}/editar`}>
             <Button variant="outline" size="sm"><Edit2 className="h-4 w-4 mr-1.5" />Editar</Button>
           </Link>
         </div>
@@ -127,7 +137,7 @@ export default async function ImovelDetailPage({ params }: { params: { id: strin
         <Card>
           <CardContent className="py-6 text-center">
             <p className="text-muted-foreground text-sm mb-3">Imóvel sem inquilino ativo</p>
-            <Link href={`/dashboard/imoveis/${params.id}/inquilino`}>
+            <Link href={`/dashboard/imoveis/${id}/inquilino`}>
               <Button size="sm">+ Cadastrar inquilino</Button>
             </Link>
           </CardContent>
