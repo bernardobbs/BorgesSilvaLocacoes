@@ -159,10 +159,7 @@ export default function TenantDetails() {
           juros_percentual,
           garantia,
           numero_contrato,
-          tipo_pessoa,
-          cnpj,
-          rg,
-          imoveis!inner (
+          imoveis (
             id,
             titulo,
             endereco_rua,
@@ -173,9 +170,10 @@ export default function TenantDetails() {
           )
         `)
         .eq('id', id)
-        .single();
+        .maybeSingle();
 
-      if (tenantError) throw tenantError;
+      if (tenantError) throw new Error(`DB error: ${tenantError.code} — ${tenantError.message} — ${tenantError.details}`);
+      if (!tenantData) throw new Error(`Inquilino não encontrado. ID: ${id}`);
 
       const transformedData = {
         ...tenantData,
@@ -295,7 +293,8 @@ export default function TenantDetails() {
         })
         .eq('id', tenant.id);
 
-      if (tenantError) throw tenantError;
+      if (tenantError) throw new Error(`DB error: ${tenantError.code} — ${tenantError.message} — ${tenantError.details}`);
+      if (!tenantData) throw new Error(`Inquilino não encontrado. ID: ${id}`);
 
       // Atualizar imóvel para disponível
       const { error: propertyError } = await supabase
