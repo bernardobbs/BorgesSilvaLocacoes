@@ -17,11 +17,27 @@ export async function POST(request: NextRequest) {
 
     const { inquilino_id, comprovante_id, imovel_id, estagio, config_id, dias_atraso, valor_total, mes_referencia } = await request.json();
 
-    await supabase.from("notificacoes_cobranca").insert({
-      inquilino_id, comprovante_id, imovel_id,
-      estagio, config_id: config_id || null, dias_atraso, valor_total,
-      mes_referencia, enviado_por: user.id,
+    // Garantir formato correto da data
+    const mesRef = mes_referencia
+      ? String(mes_referencia).slice(0, 10)  // YYYY-MM-DD
+      : null;
+
+    const { error: insertError } = await supabase.from("notificacoes_cobranca").insert({
+      inquilino_id,
+      comprovante_id: comprovante_id || null,
+      imovel_id,
+      estagio: Number(estagio) || 1,
+      config_id: config_id || null,
+      dias_atraso: Number(dias_atraso) || 0,
+      valor_total: Number(valor_total) || 0,
+      mes_referencia: mesRef,
+      enviado_por: user.id,
     });
+
+    if (insertError) {
+      console.error("Erro ao salvar notificação:", insertError);
+      return NextResponse.json({ error: insertError.message }, { status: 500 });
+    }
 
     return NextResponse.json({ success: true });
   } catch (e: any) {
