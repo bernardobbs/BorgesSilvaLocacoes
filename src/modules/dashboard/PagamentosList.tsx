@@ -432,7 +432,11 @@ export default function PagamentosList({ initialInquilinos, initialComprovantes,
                           {/* nome + imóvel + tipo */}
                           <div>
                             <div className="flex items-center gap-2">
-                              <p className="font-medium text-sm">{item.nome}</p>
+                              <Link href={`/dashboard/inquilinos/${item.inq?.id||""}`}
+                                className="font-medium text-sm hover:text-primary hover:underline"
+                                onClick={e => e.stopPropagation()}>
+                                {item.nome}
+                              </Link>
                               {isAcordo && (
                                 <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 border border-blue-200">
                                   ACORDO {item.parcela?.numero}/{item.acordo?.num_parcelas}
@@ -440,7 +444,14 @@ export default function PagamentosList({ initialInquilinos, initialComprovantes,
                               )}
                             </div>
                             <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-                              <Building2 className="h-3 w-3" />{item.imovelTitulo}
+                              <Building2 className="h-3 w-3" />
+                              {item.im?.id
+                                ? <Link href={`/dashboard/imoveis/${item.im.id}`}
+                                    className="hover:text-primary hover:underline"
+                                    onClick={e => e.stopPropagation()}>
+                                    {item.imovelTitulo}
+                                  </Link>
+                                : item.imovelTitulo}
                             </p>
                           </div>
 
@@ -514,13 +525,6 @@ export default function PagamentosList({ initialInquilinos, initialComprovantes,
           </>
         );
       })()}
-
-      {/* ══════════ ABA NOTIFICAÇÕES ══════════ */}
-      {aba === "notificacoes" && (
-        <div className="space-y-4">
-          <NotificacoesCobranca notificacoes={notificacoes} />
-        </div>
-      )}
 
       {/* ══════════ ABA POR INQUILINO ══════════ */}
       {aba === "inquilino" && (

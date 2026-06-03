@@ -1,6 +1,7 @@
 // Based on Lugo — Copyright (c) 2024 Renilson Medeiros — MIT License
 "use client";
 import { useState, useMemo } from "react";
+import NotificacoesCobranca from "@/components/dashboard/NotificacoesCobranca";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
@@ -27,7 +28,7 @@ const ESTAGIO_COLOR: Record<number,string> = {
   3: "bg-red-100 text-red-800 border-red-200",
 };
 
-export default function CobrancasClient({ cobrancas }: { cobrancas: any[] }) {
+export default function CobrancasClient({ cobrancas, pendentes }: { cobrancas: any[]; pendentes: any[] }) {
   const [busca, setBusca] = useState("");
   const [filtroEstagio, setFiltroEstagio] = useState("todos");
 
@@ -54,6 +55,22 @@ export default function CobrancasClient({ cobrancas }: { cobrancas: any[] }) {
         title="Registro de cobranças"
         subtitle={`${totalEnviados} notificações enviadas via WhatsApp`}
       />
+
+      {/* ── PENDENTES ── */}
+      {pendentes.length > 0 && (
+        <div className="space-y-2">
+          <h2 className="text-sm font-semibold text-orange-700 uppercase tracking-wide flex items-center gap-2">
+            <Bell className="h-4 w-4"/>Pendentes para enviar ({pendentes.length})
+          </h2>
+          <NotificacoesCobranca notificacoes={pendentes} />
+        </div>
+      )}
+
+      <div className="border-t pt-4">
+        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-4">
+          Histórico de cobranças enviadas
+        </h2>
+      </div>
 
       {/* Sumário por estágio */}
       <div className="grid grid-cols-3 gap-3">

@@ -8,6 +8,11 @@ export default async function CobrancasPage() {
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) redirect("/login");
 
+  const { data: pendentes } = await supabase
+    .from("notificacoes_pendentes")
+    .select("*")
+    .eq("proprietario_id", session.user.id);
+
   const { data: cobrancas } = await supabase
     .from("notificacoes_cobranca")
     .select(`
@@ -22,5 +27,5 @@ export default async function CobrancasPage() {
     .eq("inquilinos.imoveis.proprietario_id", session.user.id)
     .order("enviado_em", { ascending: false });
 
-  return <CobrancasClient cobrancas={(cobrancas || []) as any} />;
+  return <CobrancasClient cobrancas={(cobrancas || []) as any} pendentes={(pendentes || []) as any} />;
 }
