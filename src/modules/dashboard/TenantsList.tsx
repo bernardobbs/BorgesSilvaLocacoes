@@ -311,7 +311,9 @@ const TenantCard = memo(({ tenant, index, onTerminate, formatarCPF, formatarTele
               {/* name and status */}
               <div className="flex w-full flex-1 flex-col gap-1">
                 <div className="flex  items-center justify-between md:justify-start gap-4">
-                  <h3 className="font-display font-semibold">{tenant.nome_completo}</h3>
+                  <Link href={`/dashboard/inquilinos/${tenant.id}`} className="hover:text-primary transition-colors">
+                    <h3 className="font-display font-semibold">{tenant.nome_completo}</h3>
+                  </Link>
                   {score && tenant.status === 'ativo' && <ScoreBadge score={score.score} totalParcelas={score.total_parcelas} pagas={score.pagas} vencidas={score.vencidas} mediaDiasAtraso={score.media_dias_atraso} pctPontualidade={score.pct_pontualidade} size="sm" />}
                   {tenant.status === 'inativo' && (tenant as any).data_desocupacao && (
                     <span className="text-xs text-muted-foreground">
@@ -357,15 +359,10 @@ const TenantCard = memo(({ tenant, index, onTerminate, formatarCPF, formatarTele
           </div>
 
           <div className="flex items-center gap-2 text-muted-foreground w-full md:w-auto">
-            <Link href={`/dashboard/comprovantes/novo?inquilino=${tenant.id}`} className="w-full md:w-auto">
-              <Button variant="outline" size="sm" className="gap-1.5 border-tertiary hover:border-tertiary/90 bg-tertiary hover:bg-tertiary/90 text-white hover:text-white">
-                <Receipt className="h-4 w-4" />
-                Gerar comprovante
-              </Button>
-            </Link>
+
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8">
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={e => e.stopPropagation()}>
                   <MoreHorizontal className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>

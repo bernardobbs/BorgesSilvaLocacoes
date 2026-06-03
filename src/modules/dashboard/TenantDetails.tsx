@@ -140,7 +140,15 @@ export default function TenantDetails() {
           data_fim,
           status,
           observacoes,
-          imoveis (
+          valor_aluguel,
+          multa_percentual,
+          juros_percentual,
+          garantia,
+          numero_contrato,
+          tipo_pessoa,
+          cnpj,
+          rg,
+          imoveis!inner (
             id,
             titulo,
             endereco_rua,
