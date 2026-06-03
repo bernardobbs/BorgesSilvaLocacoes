@@ -533,7 +533,11 @@ export default function PagamentosList({ initialInquilinos, initialComprovantes,
               return (
                 <button key={inq.id} onClick={() => setInquilinoSel(inq)}
                   className={`w-full text-left p-3 rounded-lg border transition-colors ${inquilinoSel?.id === inq.id ? "border-primary bg-primary/5" : "border-border hover:border-border/80 hover:bg-muted/50"}`}>
-                  <p className="text-sm font-medium">{inq.nome_completo}</p>
+                  <Link href={`/dashboard/inquilinos/${inq.id}`}
+                    className="text-sm font-medium hover:text-primary hover:underline"
+                    onClick={e => e.stopPropagation()}>
+                    {inq.nome_completo}
+                  </Link>
                   <p className="text-xs text-muted-foreground mt-0.5">{inq.imoveis?.titulo}</p>
                   <div className="flex gap-1.5 mt-1.5">
                     {vencidos > 0 && <span className="text-xs bg-red-50 dark:bg-red-950 text-red-600 px-2 py-0.5 rounded-full">{vencidos} vencida{vencidos>1?"s":""}</span>}

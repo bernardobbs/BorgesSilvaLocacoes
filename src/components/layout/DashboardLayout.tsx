@@ -19,7 +19,7 @@ import {
   Loader2,
   ChevronLeft,
   ChevronRight
-, DollarSign, Handshake } from "lucide-react";
+, DollarSign, Handshake, MessageCircle } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -44,6 +44,7 @@ const menuItems = [
   { icon: Users, label: "Inquilinos", href: "/dashboard/inquilinos" },
   { icon: DollarSign, label: "Pagamentos", href: "/dashboard/pagamentos" },
   { icon: Handshake, label: "Acordos", href: "/dashboard/acordos" },
+  { icon: MessageCircle, label: "Cobranças", href: "/dashboard/cobrancas" },
   { icon: Settings, label: "Configurações", href: "/dashboard/configuracoes" },
 ];
 
