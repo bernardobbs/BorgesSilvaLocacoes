@@ -1,5 +1,6 @@
 // Based on Lugo — Copyright (c) 2024 Renilson Medeiros — MIT License
 "use client";
+import Link from "next/link";
 import AcordosEmAndamento from "@/components/dashboard/AcordosEmAndamento";
 import NotificacoesCobranca from "@/components/dashboard/NotificacoesCobranca";
 import AcordoModal from "@/components/dashboard/AcordoModal";

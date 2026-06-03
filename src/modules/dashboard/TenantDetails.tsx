@@ -94,6 +94,23 @@ export default function TenantDetails() {
   const [isTerminating, setIsTerminating] = useState(false);
   const [encerrarOpen, setEncerrarOpen] = useState(false);
 
+  // Meses cobertos por acordo ativo
+  const mesesEmAcordo = new Set(
+    acordos
+      .filter((a:any) => a.status === 'ativo')
+      .flatMap((a:any) => (a.parcelas_acordo||[])
+        .filter(()=>true)
+        // meses_cobertos vem do acordo, não das parcelas
+      )
+  );
+
+  const acordoAtivo = acordos.find((a:any) => a.status === 'ativo');
+  const mesesCobertosAcordo = new Set<string>(
+    acordoAtivo
+      ? (acordoAtivo as any).meses_cobertos?.map((d: string) => d.slice(0,7)) || []
+      : []
+  );
+
   useEffect(() => {
     if (id) {
       loadTenantData();
@@ -109,7 +126,7 @@ export default function TenantDetails() {
     try {
     const { data } = await supabase
       .from("acordos")
-      .select("id, valor_original, valor_acordo, desconto, num_parcelas, valor_parcela, status, observacoes, created_at, parcelas_acordo(id, numero, valor, data_vencimento, situation, data_pagamento, forma_pagamento)")
+      .select("id, valor_original, valor_acordo, desconto, num_parcelas, valor_parcela, meses_cobertos, status, observacoes, created_at, parcelas_acordo(id, numero, valor, data_vencimento, situation, data_pagamento, forma_pagamento)")
       .eq("inquilino_id", id)
       .order("created_at", { ascending: false });
     setAcordos(data || []);
@@ -569,14 +586,15 @@ export default function TenantDetails() {
                   const fmtD=(iso:string|null)=>{if(!iso)return"—";const[y,m,d]=iso.split("-");return`${d}/${m}/${y}`;};
                   const formaMap:Record<string,string>={pix:"Pix",dinheiro:"Dinheiro",transferencia:"Transferência",cartao:"Cartão",cheque:"Cheque"};
                   return (
-                    <div key={p.id} className={`flex items-center gap-3 px-3 py-2.5 text-sm border-b last:border-0 ${p.situation==="billed"?"bg-green-50/50":p.situation==="expired"?"bg-red-50/50":""}`}>
+                    <div key={p.id} className={`flex items-center gap-3 px-3 py-2.5 text-sm border-b last:border-0 ${p.situation==="billed"?"bg-green-50/50":p.situation==="expired"&&mesesCobertosAcordo.has(p.mes_referencia.slice(0,7))?"bg-blue-50/50":p.situation==="expired"?"bg-red-50/50":""}`}>
                       <span className="font-medium w-16 shrink-0">{mes}</span>
                       <span className="text-xs text-muted-foreground shrink-0">venc. {fmtD(p.data_vencimento)}</span>
                       <span className="font-medium">{fmtV(total)}</span>
                       {(p.valor_multa||0)+(p.valor_juros||0)>0 && <span className="text-xs text-red-500">c/ enc.</span>}
                       <span className="ml-auto text-xs font-medium">
                         {p.situation==="billed" && <span className="text-green-700">✓ {fmtD(p.data_pagamento)}{p.forma_pagamento?` · ${formaMap[p.forma_pagamento]||p.forma_pagamento}`:""}</span>}
-                        {p.situation==="expired" && <span className="text-red-700">✗ Vencido</span>}
+                        {p.situation==="expired" && mesesCobertosAcordo.has(p.mes_referencia.slice(0,7)) && <span className="text-blue-700">🤝 Em acordo</span>}
+                        {p.situation==="expired" && !mesesCobertosAcordo.has(p.mes_referencia.slice(0,7)) && <span className="text-red-700">✗ Vencido</span>}
                         {p.situation==="open" && <span className="text-blue-700">Em aberto</span>}
                       </span>
                     </div>
