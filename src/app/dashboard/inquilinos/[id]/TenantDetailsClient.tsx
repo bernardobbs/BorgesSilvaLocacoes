@@ -1,0 +1,235 @@
+// Based on Lugo — Copyright (c) 2024 Renilson Medeiros — MIT License
+"use client";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { User, Phone, Mail, Building2, Calendar, FileText, Edit, UserMinus, ArrowLeft } from "lucide-react";
+import EncerrarContratoModal from "@/components/dashboard/EncerrarContratoModal";
+import { useFormFormatting } from "@/lib/hooks/useFormFormatting";
+
+function fmtV(v: number) { return (v||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"}); }
+function fmtD(iso: string|null) { if(!iso)return"—"; const[y,m,d]=iso.split("-"); return`${d}/${m}/${y}`; }
+function mesL(iso: string) { if(!iso)return""; const[y,mo]=iso.split("-"); const M=["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"]; return`${M[parseInt(mo)-1]}/${y}`; }
+
+const formaMap:Record<string,string>={pix:"Pix",dinheiro:"Dinheiro",transferencia:"Transferência",cartao:"Cartão",cheque:"Cheque"};
+
+export default function TenantDetailsClient({ tenant, historicoPag, historicoNotif, acordos }: {
+  tenant: any; historicoPag: any[]; historicoNotif: any[]; acordos: any[];
+}) {
+  const router = useRouter();
+  const { formatarCPF, formatarTelefone } = useFormFormatting();
+  const [encerrarOpen, setEncerrarOpen] = useState(false);
+
+  const acordoAtivo = acordos.find((a:any) => a.status === "ativo");
+  const mesesCobertos = new Set<string>(
+    acordoAtivo?.meses_cobertos?.map((d:string) => d.slice(0,7)) || []
+  );
+
+  const im = tenant.imoveis;
+
+  return (
+    <div className="space-y-6 p-6 max-w-3xl mx-auto">
+      {/* Header */}
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="icon" onClick={() => router.back()}>
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <div>
+            <h1 className="text-2xl font-semibold">{tenant.nome_completo}</h1>
+            <div className="flex items-center gap-2 mt-1">
+              <Badge className={tenant.status === "ativo" ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-600"}>
+                {tenant.status === "ativo" ? "Ativo" : "Encerrado"}
+              </Badge>
+              {im && <span className="text-sm text-muted-foreground">{im.titulo}</span>}
+            </div>
+          </div>
+        </div>
+        <div className="flex gap-2 shrink-0">
+          <Link href={`/dashboard/inquilinos/${tenant.id}/editar`}>
+            <Button variant="outline" size="sm"><Edit className="h-4 w-4 mr-1.5"/>Editar</Button>
+          </Link>
+          {tenant.status === "ativo" && (
+            <Button variant="outline" size="sm" className="text-orange-600 border-orange-400"
+              onClick={() => setEncerrarOpen(true)}>
+              <UserMinus className="h-4 w-4 mr-1.5"/>Finalizar
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {/* Dados pessoais */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base flex items-center gap-2"><User className="h-4 w-4"/>Dados pessoais</CardTitle>
+        </CardHeader>
+        <CardContent className="grid grid-cols-2 gap-4 text-sm">
+          <div><p className="text-muted-foreground">CPF</p><p className="font-medium">{formatarCPF(tenant.cpf||"")}</p></div>
+          <div><p className="text-muted-foreground">Telefone</p>
+            <p className="font-medium flex items-center gap-1.5">
+              <Phone className="h-3.5 w-3.5"/>{formatarTelefone(tenant.telefone||"")}
+            </p>
+          </div>
+          {tenant.email && <div className="col-span-2"><p className="text-muted-foreground">E-mail</p>
+            <p className="font-medium flex items-center gap-1.5"><Mail className="h-3.5 w-3.5"/>{tenant.email}</p>
+          </div>}
+        </CardContent>
+      </Card>
+
+      {/* Locação */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base flex items-center gap-2"><Calendar className="h-4 w-4"/>Locação</CardTitle>
+        </CardHeader>
+        <CardContent className="grid grid-cols-2 gap-4 text-sm">
+          {im && (
+            <div className="col-span-2">
+              <p className="text-muted-foreground">Imóvel</p>
+              <Link href={`/dashboard/imoveis/${im.id}`} className="font-medium flex items-center gap-1.5 hover:text-primary hover:underline">
+                <Building2 className="h-3.5 w-3.5"/>{im.titulo}
+              </Link>
+              <p className="text-xs text-muted-foreground mt-0.5">{im.endereco_rua}, {im.endereco_numero}</p>
+            </div>
+          )}
+          <div><p className="text-muted-foreground">Início</p><p className="font-medium">{fmtD(tenant.data_inicio)}</p></div>
+          <div><p className="text-muted-foreground">Vencimento</p><p className="font-medium">Dia {tenant.dia_vencimento}</p></div>
+          <div><p className="text-muted-foreground">Aluguel</p><p className="font-semibold text-primary">{fmtV(tenant.valor_aluguel)}/mês</p></div>
+          <div><p className="text-muted-foreground">Garantia</p><p className="font-medium capitalize">{tenant.garantia||"nenhuma"}</p></div>
+          {tenant.numero_contrato && <div><p className="text-muted-foreground">Contrato</p><p className="font-medium">{tenant.numero_contrato}</p></div>}
+          {tenant.multa_percentual && <div><p className="text-muted-foreground">Multa / Juros</p><p className="font-medium">{tenant.multa_percentual}% / {tenant.juros_percentual}% a.m.</p></div>}
+        </CardContent>
+      </Card>
+
+      {/* Histórico financeiro */}
+      {historicoPag.length > 0 && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2"><FileText className="h-4 w-4"/>Histórico financeiro</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* Sumário */}
+            <div className="grid grid-cols-4 gap-2">
+              {[
+                {label:"Pagos",v:historicoPag.filter(p=>p.situation==="billed").length,cls:"text-green-700 bg-green-50"},
+                {label:"Em aberto",v:historicoPag.filter(p=>p.situation==="open").length,cls:"text-blue-700 bg-blue-50"},
+                {label:"Vencidos",v:historicoPag.filter(p=>p.situation==="expired"&&!mesesCobertos.has(p.mes_referencia.slice(0,7))).length,cls:"text-red-700 bg-red-50"},
+                {label:"Acordos",v:acordos.length,cls:"text-purple-700 bg-purple-50"},
+              ].map(({label,v,cls})=>(
+                <div key={label} className={`${cls.split(" ")[1]} rounded-lg p-2.5 text-center`}>
+                  <p className="text-xs text-muted-foreground">{label}</p>
+                  <p className={`text-xl font-semibold ${cls.split(" ")[0]}`}>{v}</p>
+                </div>
+              ))}
+            </div>
+            {/* Lista */}
+            <div className="rounded-lg border overflow-hidden">
+              {historicoPag.map((p:any) => {
+                const total=(p.valor||0)+(p.valor_multa||0)+(p.valor_juros||0);
+                const emAcordo = p.situation==="expired" && mesesCobertos.has(p.mes_referencia.slice(0,7));
+                return (
+                  <div key={p.id} className={`flex items-center gap-3 px-3 py-2.5 text-sm border-b last:border-0 ${p.situation==="billed"?"bg-green-50/50":emAcordo?"bg-blue-50/50":p.situation==="expired"?"bg-red-50/50":""}`}>
+                    <span className="font-medium w-16 shrink-0">{mesL(p.mes_referencia)}</span>
+                    <span className="text-xs text-muted-foreground shrink-0">venc. {fmtD(p.data_vencimento)}</span>
+                    <span className="font-medium">{fmtV(total)}</span>
+                    {(p.valor_multa||0)+(p.valor_juros||0)>0 && <span className="text-xs text-red-500">c/ enc.</span>}
+                    <span className="ml-auto text-xs font-medium">
+                      {p.situation==="billed" && <span className="text-green-700">✓ {fmtD(p.data_pagamento)}{p.forma_pagamento?` · ${formaMap[p.forma_pagamento]||p.forma_pagamento}`:""}</span>}
+                      {emAcordo && <span className="text-blue-700">🤝 Em acordo</span>}
+                      {p.situation==="expired" && !emAcordo && <span className="text-red-700">✗ Vencido</span>}
+                      {p.situation==="open" && <span className="text-blue-700">Em aberto</span>}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Acordos */}
+            {acordos.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Acordos</p>
+                {acordos.map((a:any) => {
+                  const parcelas=a.parcelas_acordo||[];
+                  const pagas=parcelas.filter((p:any)=>p.situation==="billed").length;
+                  return (
+                    <div key={a.id} className="rounded-lg border overflow-hidden">
+                      <div className={`flex items-center justify-between px-3 py-2.5 text-sm ${a.status==="cumprido"?"bg-green-50":a.status==="quebrado"?"bg-red-50":"bg-blue-50"}`}>
+                        <span className="font-medium">{fmtV(a.valor_acordo)} em {a.num_parcelas}x de {fmtV(a.valor_parcela)}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-muted-foreground">{pagas}/{a.num_parcelas} pagas</span>
+                          <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${a.status==="cumprido"?"bg-green-100 text-green-700":a.status==="quebrado"?"bg-red-100 text-red-700":"bg-blue-100 text-blue-700"}`}>
+                            {a.status==="cumprido"?"Cumprido":a.status==="quebrado"?"Quebrado":"Em andamento"}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="divide-y">
+                        {parcelas.sort((x:any,y:any)=>x.numero-y.numero).map((p:any)=>(
+                          <div key={p.id} className={`flex items-center gap-3 px-3 py-2 text-xs ${p.situation==="billed"?"bg-green-50/30":p.situation==="expired"?"bg-red-50/30":""}`}>
+                            <span className="font-medium w-16">Parcela {p.numero}</span>
+                            <span className="text-muted-foreground">{fmtD(p.data_vencimento)}</span>
+                            <span className="font-medium">{fmtV(p.valor)}</span>
+                            <span className="ml-auto">
+                              {p.situation==="billed" && <span className="text-green-700">✓ Pago {fmtD(p.data_pagamento)}</span>}
+                              {p.situation==="expired" && <span className="text-red-700">✗ Vencido</span>}
+                              {p.situation==="open" && <span className="text-blue-700">Em aberto</span>}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                      {a.observacoes && <p className="px-3 py-2 text-xs text-muted-foreground border-t bg-muted/20">📝 {a.observacoes}</p>}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Notificações */}
+            {historicoNotif.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Notificações enviadas ({historicoNotif.length})</p>
+                <div className="rounded-lg border overflow-hidden">
+                  {historicoNotif.map((n:any)=>{
+                    const cfg=Array.isArray(n.config_notificacoes)?n.config_notificacoes[0]:n.config_notificacoes;
+                    const prof=Array.isArray(n.profiles)?n.profiles[0]:n.profiles;
+                    const [y,m,d]=(n.enviado_em||"").split("T")[0].split("-");
+                    return (
+                      <div key={n.id} className="flex items-center gap-3 px-3 py-2.5 border-b last:border-0 text-sm">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium">{cfg?.label||`Estágio ${n.estagio}`}</span>
+                            <span className="text-xs bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded">D+{n.dias_atraso}</span>
+                          </div>
+                          <p className="text-xs text-muted-foreground">{d}/{m}/{y}{prof?.nome_completo?` · por ${prof.nome_completo}`:""}</p>
+                        </div>
+                        <span className="text-sm font-medium text-red-600">{fmtV(n.valor_total||0)}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Modal encerramento */}
+      {encerrarOpen && (
+        <EncerrarContratoModal
+          open={encerrarOpen}
+          onClose={() => setEncerrarOpen(false)}
+          onSuccess={() => { setEncerrarOpen(false); router.push("/dashboard/inquilinos"); }}
+          inquilinoId={tenant.id}
+          imovelId={tenant.imovel_id}
+          nomeInquilino={tenant.nome_completo}
+          docInquilino={tenant.cpf||""}
+          imovelTitulo={im?.titulo||""}
+          imovelEndereco={im?`${im.endereco_rua||""}, ${im.endereco_numero||""}`:""}
+          dataInicio={tenant.data_inicio||""}
+          comprovantes={historicoPag}
+        />
+      )}
+    </div>
+  );
+}
