@@ -210,9 +210,20 @@ export async function POST(request: NextRequest) {
       const ol=doc.splitTextToSize(inq.obs_encerramento,W); doc.text(ol,L,y); y+=ol.length*5.5+8; checkPage();
     }
 
+
+    // Buscar configuração do procurador
+    const { data: cfgData } = await supabase.from("config_sistema")
+      .select("chave, valor")
+      .in("chave", ["locador_nome","locador_cpf_cnpj","procurador_ativo","procurador_nome","procurador_cpf"]);
+    const cfgMap2: Record<string,string> = {};
+    (cfgData||[]).forEach((r:any) => { cfgMap2[r.chave] = r.valor||""; });
+    const temProc = cfgMap2.procurador_ativo === "true" && !!cfgMap2.procurador_nome;
+    const nomeProprietario = cfgMap2.locador_nome || locadorNome || "Borges Silva Locações";
+    const cpfProprietario  = cfgMap2.locador_cpf_cnpj || locadorDoc || "";
+    const nomeProcurador   = cfgMap2.procurador_nome || "";
+    const cpfProcurador    = cfgMap2.procurador_cpf  || "";
     // ── ASSINATURA ────────────────────────────────────
     y+=8; linha();
-// Assinatura
     doc.line(55,y+15,155,y+15); y+=22;
     doc.setFont("helvetica","bold"); doc.setFontSize(9); doc.setTextColor(30,30,30);
     doc.text(nomeProprietario,105,y,{align:"center"});
