@@ -78,6 +78,28 @@ function formaLabel(f: string | null) {
   return f ? (m[f] || f) : "—";
 }
 
+function contratoAtivo(inq: Inquilino, mes: string): boolean {
+  // Verificar se o mês selecionado está dentro do período do contrato
+  const [my, mm] = mes.split("-").map(Number);
+  const mesSel = new Date(my, mm - 1, 1);
+
+  // Início do contrato
+  if (inq.data_inicio) {
+    const [dy, dm, dd] = inq.data_inicio.split("-").map(Number);
+    const inicio = new Date(dy, dm - 1, 1); // início do mês do contrato
+    if (mesSel < inicio) return false;
+  }
+
+  // Fim do contrato (se definido)
+  if (inq.data_fim) {
+    const [fy, fm] = inq.data_fim.split("-").map(Number);
+    const fim = new Date(fy, fm - 1, 1);
+    if (mesSel > fim) return false;
+  }
+
+  return true;
+}
+
 function parseLocalMonth(iso: string) {
   const [y, m] = iso.split("-").map(Number);
   return new Date(y, m - 1, 1); // local time, not UTC
@@ -220,6 +242,7 @@ export default function PagamentosList({ initialInquilinos, initialComprovantes,
   /* lista filtrada */
   const lista = useMemo(() => {
     return initialInquilinos.filter(inq => {
+      if (!contratoAtivo(inq, mesAtual)) return false; // mês fora do contrato
       if (filtro === "todos") return true;
       const c = compDoMes(inq.id, mesAtual);
       const sit = getSituation(inq, c, mesAtual, inquilinosComAcordo);
@@ -277,7 +300,7 @@ export default function PagamentosList({ initialInquilinos, initialComprovantes,
         const items: ItemCalendario[] = [];
 
         // Mensalidades do mês selecionado
-        lista.forEach(inq => {
+        lista.filter(inq => contratoAtivo(inq, mesAtual)).forEach(inq => {
           const comp = compDoMes(inq.id, mesAtual);
           const sit = getSituation(inq, comp, mesAtual, inquilinosComAcordo) as any;
           const dias = diasAtraso(inq, comp, mesAtual);
