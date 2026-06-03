@@ -14,7 +14,7 @@ export default async function PagamentosPage() {
     .select(`
       id, nome_completo, cpf, cnpj, tipo_pessoa, telefone,
       valor_aluguel, dia_vencimento, multa_percentual, juros_percentual,
-      imovel_id,
+      imovel_id, data_inicio, data_fim,
       imoveis!inner (
         id, titulo, endereco_rua, endereco_numero, proprietario_id
       )
