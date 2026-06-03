@@ -1,6 +1,7 @@
 "use client";
 
 // src/modules/dashboard/TenantDetails.tsx
+import EncerrarContratoModal from "@/components/dashboard/EncerrarContratoModal";
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
@@ -91,6 +92,7 @@ export default function TenantDetails() {
   const [historicoPag, setHistoricoPag] = useState<any[]>([]);
   const [acordos, setAcordos] = useState<any[]>([]);
   const [isTerminating, setIsTerminating] = useState(false);
+  const [encerrarOpen, setEncerrarOpen] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -385,7 +387,7 @@ export default function TenantDetails() {
               <Button
                 variant="outline"
                 className="gap-2 text-orange-600 border-orange-600 hover:bg-orange-50"
-                onClick={() => setShowTerminateDialog(true)}
+                onClick={() => setEncerrarOpen(true)}
               >
                 <UserMinus className="h-4 w-4" />
                 Finalizar Locação
@@ -532,70 +534,142 @@ export default function TenantDetails() {
           </Card>
         )}
 
-        {/* Comprovantes */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center gap-2">
+        {/* ── HISTÓRICO FINANCEIRO ── */}
+        {historicoPag.length > 0 && (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base flex items-center gap-2">
                 <FileText className="h-5 w-5 text-tertiary" />
-                Histórico
+                Histórico financeiro
               </CardTitle>
-
-            </div>
-          </CardHeader>
-          <CardContent>
-            {comprovantes.length > 0 ? (
-              <div className="space-y-2">
-                {comprovantes.map((comp) => (
-                  <div
-                    key={comp.id}
-                    className="flex items-center justify-between p-3 rounded-lg border hover:bg-accent/50 transition-colors"
-                  >
-                    <div>
-                      <p className="font-medium">
-                        {getMonthName(comp.mes)} de {comp.ano}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        Pago em {formatDate(comp.data_pagamento)}
-                      </p>
-                    </div>
-                    <p className="font-semibold text-green-600">
-                      {formatarMoeda((comp.valor_pago * 100).toString())}
-                    </p>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Sumário */}
+              <div className="grid grid-cols-4 gap-2">
+                {[
+                  { label:"Pagos", val:historicoPag.filter(p=>p.situation==="billed").length, cls:"text-green-700 bg-green-50" },
+                  { label:"Em aberto", val:historicoPag.filter(p=>p.situation==="open").length, cls:"text-blue-700 bg-blue-50" },
+                  { label:"Vencidos", val:historicoPag.filter(p=>p.situation==="expired").length, cls:"text-red-700 bg-red-50" },
+                  { label:"Acordos", val:acordos.length, cls:"text-purple-700 bg-purple-50" },
+                ].map(({label,val,cls})=>(
+                  <div key={label} className={`${cls.split(" ")[1]} rounded-lg p-2.5 text-center`}>
+                    <p className="text-xs text-muted-foreground">{label}</p>
+                    <p className={`text-xl font-semibold ${cls.split(" ")[0]}`}>{val}</p>
                   </div>
                 ))}
               </div>
-            ) : (
-              <p className="text-center text-muted-foreground py-8">
-                Nenhum comprovante gerado ainda
-              </p>
-            )}
-          </CardContent>
-        </Card>
+              {/* Lista */}
+              <div className="rounded-lg border overflow-hidden">
+                {historicoPag.map((p:any)=>{
+                  const total=(p.valor||0)+(p.valor_multa||0)+(p.valor_juros||0);
+                  const [py,pm]=p.mes_referencia.split("-");
+                  const meses=["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
+                  const mes=`${meses[parseInt(pm)-1]}/${py}`;
+                  const fmtV=(v:number)=>v.toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
+                  const fmtD=(iso:string|null)=>{if(!iso)return"—";const[y,m,d]=iso.split("-");return`${d}/${m}/${y}`;};
+                  const formaMap:Record<string,string>={pix:"Pix",dinheiro:"Dinheiro",transferencia:"Transferência",cartao:"Cartão",cheque:"Cheque"};
+                  return (
+                    <div key={p.id} className={`flex items-center gap-3 px-3 py-2.5 text-sm border-b last:border-0 ${p.situation==="billed"?"bg-green-50/50":p.situation==="expired"?"bg-red-50/50":""}`}>
+                      <span className="font-medium w-16 shrink-0">{mes}</span>
+                      <span className="text-xs text-muted-foreground shrink-0">venc. {fmtD(p.data_vencimento)}</span>
+                      <span className="font-medium">{fmtV(total)}</span>
+                      {(p.valor_multa||0)+(p.valor_juros||0)>0 && <span className="text-xs text-red-500">c/ enc.</span>}
+                      <span className="ml-auto text-xs font-medium">
+                        {p.situation==="billed" && <span className="text-green-700">✓ {fmtD(p.data_pagamento)}{p.forma_pagamento?` · ${formaMap[p.forma_pagamento]||p.forma_pagamento}`:""}</span>}
+                        {p.situation==="expired" && <span className="text-red-700">✗ Vencido</span>}
+                        {p.situation==="open" && <span className="text-blue-700">Em aberto</span>}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+              {/* Acordos */}
+              {acordos.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Acordos</p>
+                  {acordos.map((a:any)=>{
+                    const parcelas=a.parcelas_acordo||[];
+                    const pagas=parcelas.filter((p:any)=>p.situation==="billed").length;
+                    const fmtV=(v:number)=>(v||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
+                    const fmtD=(iso:string|null)=>{if(!iso)return"—";const[y,m,d]=iso.split("-");return`${d}/${m}/${y}`;};
+                    const formaMap:Record<string,string>={pix:"Pix",dinheiro:"Dinheiro",transferencia:"Transferência",cartao:"Cartão",cheque:"Cheque"};
+                    return (
+                      <div key={a.id} className="rounded-lg border overflow-hidden">
+                        <div className={`flex items-center justify-between px-3 py-2.5 text-sm ${a.status==="cumprido"?"bg-green-50":a.status==="quebrado"?"bg-red-50":"bg-blue-50"}`}>
+                          <span className="font-medium">{fmtV(a.valor_acordo)} em {a.num_parcelas}x de {fmtV(a.valor_parcela)}</span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-muted-foreground">{pagas}/{a.num_parcelas} pagas</span>
+                            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${a.status==="cumprido"?"bg-green-100 text-green-700":a.status==="quebrado"?"bg-red-100 text-red-700":"bg-blue-100 text-blue-700"}`}>
+                              {a.status==="cumprido"?"Cumprido":a.status==="quebrado"?"Quebrado":"Em andamento"}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="divide-y">
+                          {parcelas.sort((x:any,y:any)=>x.numero-y.numero).map((p:any)=>(
+                            <div key={p.id} className={`flex items-center gap-3 px-3 py-2 text-xs ${p.situation==="billed"?"bg-green-50/30":p.situation==="expired"?"bg-red-50/30":""}`}>
+                              <span className="font-medium w-16">Parcela {p.numero}</span>
+                              <span className="text-muted-foreground">{fmtD(p.data_vencimento)}</span>
+                              <span className="font-medium">{fmtV(p.valor)}</span>
+                              <span className="ml-auto font-medium">
+                                {p.situation==="billed" && <span className="text-green-700">✓ Pago {fmtD(p.data_pagamento)}{p.forma_pagamento?` · ${formaMap[p.forma_pagamento]||p.forma_pagamento}`:""}</span>}
+                                {p.situation==="expired" && <span className="text-red-700">✗ Vencido</span>}
+                                {p.situation==="open" && <span className="text-blue-700">Em aberto</span>}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                        {a.observacoes && <p className="px-3 py-2 text-xs text-muted-foreground border-t bg-muted/20">📝 {a.observacoes}</p>}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              {/* Notificações */}
+              {historicoNotif.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Notificações enviadas ({historicoNotif.length})</p>
+                  <div className="rounded-lg border overflow-hidden">
+                    {historicoNotif.map((n:any)=>{
+                      const cfg=Array.isArray(n.config_notificacoes)?n.config_notificacoes[0]:n.config_notificacoes;
+                      const prof=Array.isArray(n.profiles)?n.profiles[0]:n.profiles;
+                      const [y,m,d]=(n.enviado_em||"").split("T")[0].split("-");
+                      return (
+                        <div key={n.id} className="flex items-center gap-3 px-3 py-2.5 border-b last:border-0 text-sm">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium">{cfg?.label||`Estágio ${n.estagio}`}</span>
+                              <span className="text-xs bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded">D+{n.dias_atraso}</span>
+                            </div>
+                            <p className="text-xs text-muted-foreground">{d}/{m}/{y}{prof?.nome_completo?` · por ${prof.nome_completo}`:""}</p>
+                          </div>
+                          <span className="text-sm font-medium text-red-600">{(n.valor_total||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"})}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
       </div>
 
-      {/* Dialog de Confirmação */}
-      <AlertDialog open={showTerminateDialog} onOpenChange={setShowTerminateDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Finalizar Locação</AlertDialogTitle>
-            <AlertDialogDescription>
-              Tem certeza que deseja finalizar a locação de {tenant.nome_completo}? 
-              Esta ação irá inativar o inquilino, deletar todos os comprovantes e marcar o imóvel como disponível.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isTerminating}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleTerminateLease}
-              disabled={isTerminating}
-              className="bg-orange-600 hover:bg-orange-700"
-            >
-              {isTerminating ? 'Finalizando...' : 'Finalizar Locação'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {/* Modal de encerramento */}
+      {encerrarOpen && tenant && (
+        <EncerrarContratoModal
+          open={encerrarOpen}
+          onClose={() => setEncerrarOpen(false)}
+          onSuccess={() => { setEncerrarOpen(false); router.push('/dashboard/inquilinos'); }}
+          inquilinoId={tenant.id}
+          imovelId={tenant.imovel_id}
+          nomeInquilino={tenant.nome_completo}
+          docInquilino={tenant.cpf||""}
+          imovelTitulo={tenant.imoveis?.titulo||""}
+          imovelEndereco={tenant.imoveis?`${tenant.imoveis.endereco_rua}, ${tenant.imoveis.endereco_numero}`:""}
+          dataInicio={tenant.data_inicio||""}
+          comprovantes={historicoPag}
+        />
+      )}
     </>
   );
 }
