@@ -436,8 +436,9 @@ interface PropertyCardProps {
 const PropertyCard = memo(({ property, index, onShare, onDelete, onTerminate, onChangeStatus, formatarMoeda }: PropertyCardProps) => {
   return (
     <Card
-      className="group overflow-hidden transition-all duration-300 hover:shadow-sm animate-fade-in"
+      className="group overflow-hidden transition-all duration-300 hover:shadow-sm animate-fade-in cursor-pointer"
       style={{ animationDelay: `${index * 100}ms` }}
+      onClick={() => window.location.href = `/dashboard/imoveis/${property.id}`}
     >
       <div className="relative aspect-video overflow-hidden">
         <Image
@@ -477,13 +478,13 @@ const PropertyCard = memo(({ property, index, onShare, onDelete, onTerminate, on
             {formatarMoeda((property.rent * 100).toString())}/mês
           </p>
           <div className="flex items-center gap-1">            <Link href={`/dashboard/imoveis/${property.id}`}>
-              <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Ver imóvel">
+              <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Ver imóvel" onClick={e => e.stopPropagation()}>
                 <Eye className="h-4 w-4 text-primary" />
               </Button>
             </Link>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Mais opções">
+                <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Mais opções" onClick={e => e.stopPropagation()}>
                   <MoreHorizontal className="h-4 w-4 text-primary" />
                 </Button>
               </DropdownMenuTrigger>

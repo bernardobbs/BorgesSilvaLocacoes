@@ -29,7 +29,6 @@ export default async function ImovelDetailPage({ params }: { params: { id: strin
     .from("imoveis")
     .select("*")
     .eq("id", params.id)
-    .eq("proprietario_id", session.user.id)
     .single();
 
   if (!imovel) redirect("/dashboard/imoveis");
