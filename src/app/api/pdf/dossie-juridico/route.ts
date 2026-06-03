@@ -236,17 +236,6 @@ export async function POST(request: NextRequest) {
     const safe = inq.nome_completo.normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-zA-Z0-9-_]/g,"-").replace(/-+/g,"-").toLowerCase();
     const fileName = `${user.id}/${inq.imovel_id}/juridico/${Date.now()}-dossie-${safe}.pdf`;
 
-    // Buscar configuração do procurador
-    const { data: cfgData } = await supabase.from("config_sistema")
-      .select("chave, valor")
-      .in("chave", ["locador_nome","locador_cpf_cnpj","procurador_ativo","procurador_nome","procurador_cpf"]);
-    const cfgMap2: Record<string,string> = {};
-    (cfgData||[]).forEach((r:any) => { cfgMap2[r.chave] = r.valor||""; });
-    const temProc = cfgMap2.procurador_ativo === "true" && !!cfgMap2.procurador_nome;
-    const nomeProprietario = cfgMap2.locador_nome || "Borges Silva Locações";
-    const cpfProprietario  = cfgMap2.locador_cpf_cnpj || "";
-    const nomeProcurador   = cfgMap2.procurador_nome || "";
-    const cpfProcurador    = cfgMap2.procurador_cpf  || "";
 
     const pdfBuffer = Buffer.from(doc.output("arraybuffer"));
     const { error:ue } = await supabase.storage.from("imoveis-fotos").upload(fileName,pdfBuffer,{contentType:"application/pdf"});
