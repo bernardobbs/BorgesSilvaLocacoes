@@ -1,6 +1,7 @@
 // Based on Lugo — Copyright (c) 2024 Renilson Medeiros — MIT License
 "use client";
 import { useMemo } from "react";
+import NotificacoesCobranca from "@/components/dashboard/NotificacoesCobranca";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -287,54 +288,7 @@ export default function NovoDashboard({ inquilinos, compMes, imoveis, acordos, n
 
         {/* ── NOTIFICAÇÕES + ACORDOS ── */}
         <div className="space-y-4">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm flex items-center justify-between">
-                <span className="flex items-center gap-2"><Bell className="h-4 w-4 text-orange-500"/>Notificações pendentes</span>
-                {notifPendentes.length > 0 && <Badge className="bg-orange-100 text-orange-800 border-orange-200">{notifPendentes.length}</Badge>}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              {notifPendentes.length === 0 ? (
-                <p className="px-4 py-4 text-xs text-center text-muted-foreground">Nenhuma notificação pendente.</p>
-              ) : notifPendentes.slice(0,3).map((n:any)=>{
-                const multa = n.valor_aluguel*(n.multa_percentual/100);
-                const juros = n.valor_aluguel*(n.juros_percentual/100/30)*n.dias_atraso;
-                const msg = encodeURIComponent(
-                  (n.mensagem_template||"")
-                    .replace(/{{nome}}/g,n.nome_completo||"")
-                    .replace(/{{imovel}}/g,n.imovel_titulo||"")
-                    .replace(/{{dias}}/g,String(n.dias_atraso||0))
-                    .replace(/{{valor_base}}/g,fmtBRL(n.valor_aluguel||0))
-                    .replace(/{{multa}}/g,fmtBRL(multa))
-                    .replace(/{{juros}}/g,fmtBRL(juros))
-                    .replace(/{{valor_total}}/g,fmtBRL(n.valor_total||0))
-                    .replace(/{{mes}}/g,"")
-                    .replace(/{{vencimento}}/g,"")
-                );
-                return (
-                  <div key={`${n.comprovante_id}-${n.config_id}`} className="flex items-center gap-3 px-4 py-3 border-b last:border-0">
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-sm truncate">{n.nome_completo}</p>
-                      <p className="text-xs text-muted-foreground">{n.estagio_label||`Estágio ${n.estagio_atual}`} · D+{n.dias_atraso}</p>
-                    </div>
-                    <a href={`https://wa.me/${phoneWA(n.telefone)}?text=${msg}`} target="_blank" rel="noreferrer">
-                      <Button size="sm" className="bg-[#25D366] hover:bg-[#128C7E] text-white gap-1.5 shrink-0">
-                        <MessageCircle className="h-3.5 w-3.5"/>Enviar
-                      </Button>
-                    </a>
-                  </div>
-                );
-              })}
-              {notifPendentes.length > 3 && (
-                <div className="px-4 py-2.5 border-t">
-                  <Link href="/dashboard/pagamentos?tab=notificacoes">
-                    <Button variant="outline" size="sm" className="w-full text-xs">Ver todas ({notifPendentes.length}) →</Button>
-                  </Link>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          <NotificacoesCobranca notificacoes={notificacoes} compact={true} />
 
           {proximasAcordo.length > 0 && (
             <Card>
