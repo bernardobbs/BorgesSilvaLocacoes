@@ -296,6 +296,7 @@ export default function PagamentosList({ initialInquilinos, initialComprovantes,
           comp?: Comprovante;
           parcela?: any;
           acordo?: any;
+          im?: { id: string; titulo: string } | null;
         };
 
         const items: ItemCalendario[] = [];
@@ -317,6 +318,7 @@ export default function PagamentosList({ initialInquilinos, initialComprovantes,
             tipo: "aluguel",
             nome: inq.nome_completo,
             imovelTitulo: inq.imoveis?.titulo || "",
+            im: inq.imoveis ? { id: inq.imovel_id, titulo: inq.imoveis.titulo } : null,
             valor: total,
             dataVencimento: vencStr,
             situation: sit,
