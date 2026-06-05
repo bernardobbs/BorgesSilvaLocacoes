@@ -29,6 +29,10 @@ export default function InativosClient({ inativos, comprovantesMap, notificacoes
   const [expandido, setExpandido] = useState<string|null>(null);
   const [gerandoPdf, setGerandoPdf] = useState<string|null>(null);
   const [pdfUrls, setPdfUrls] = useState<Record<string,string>>({});
+  const [gerandoCorreios, setGerandoCorreios] = useState<string|null>(null);
+  const [marcandoAdv, setMarcandoAdv] = useState<string|null>(null);
+  const [advModal, setAdvModal] = useState<{id:string;nome:string}|null>(null);
+  const [advObs, setAdvObs] = useState("");
 
   const temDivida = inativos.filter(i => (i.divida_residual||0) > 0);
   const semDivida = inativos.filter(i => (i.divida_residual||0) === 0);
@@ -47,6 +51,40 @@ export default function InativosClient({ inativos, comprovantesMap, notificacoes
     } catch(e:any) {
       toast.error("Erro ao gerar dossiê", { description: e.message });
     } finally { setGerandoPdf(null); }
+  }
+
+  async function gerarCorreios(inquilino_id: string) {
+    setGerandoCorreios(inquilino_id);
+    try {
+      const res = await fetch("/api/pdf/notificacao-correios", {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({ inquilino_id }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error);
+      window.open(json.pdfUrl, "_blank");
+      toast.success("PDF para Correios gerado!");
+    } catch(e:any) { toast.error("Erro ao gerar PDF", { description: e.message }); }
+    finally { setGerandoCorreios(null); }
+  }
+
+  async function marcarEnviadoAdvogado(id: string, obs: string) {
+    setMarcandoAdv(id);
+    try {
+      const { error } = await (await import("@/lib/supabase")).supabase
+        .from("inquilinos")
+        .update({
+          enviado_advogado_em: new Date().toISOString(),
+          advogado_status: "enviado",
+          advogado_obs: obs || null,
+        })
+        .eq("id", id);
+      if (error) throw error;
+      toast.success("Caso marcado como enviado ao advogado!");
+      setAdvModal(null); setAdvObs("");
+      window.location.reload();
+    } catch(e:any) { toast.error("Erro ao registrar", { description: e.message }); }
+    finally { setMarcandoAdv(null); }
   }
 
   function InativoCard({ i }: { i: any }) {
@@ -99,6 +137,25 @@ export default function InativosClient({ inativos, comprovantesMap, notificacoes
                     ? <><Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin"/>Gerando...</>
                     : <><FileWarning className="h-3.5 w-3.5 mr-1.5"/>Gerar dossiê</>}
                 </Button>
+              )}
+              {divida > 0 && (
+                <Button size="sm" variant="outline" className="text-blue-700 border-blue-300"
+                  disabled={gerandoCorreios===i.id} onClick={()=>gerarCorreios(i.id)}>
+                  {gerandoCorreios===i.id
+                    ? <><Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin"/>Gerando...</>
+                    : <>📮 Correios AR</>}
+                </Button>
+              )}
+              {divida > 0 && !i.enviado_advogado_em && (
+                <Button size="sm" variant="outline" className="text-purple-700 border-purple-300"
+                  onClick={()=>{ setAdvModal({id:i.id, nome:i.nome_completo}); setAdvObs(""); }}>
+                  ⚖️ Enviar ao advogado
+                </Button>
+              )}
+              {i.enviado_advogado_em && (
+                <span className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded-full border border-purple-200 font-medium">
+                  ⚖️ Adv. em {i.enviado_advogado_em.split("T")[0].split("-").reverse().join("/")}
+                </span>
               )}
               {url && (
                 <div className="flex gap-1.5">
@@ -212,6 +269,29 @@ export default function InativosClient({ inativos, comprovantesMap, notificacoes
 
   return (
     <div className="space-y-6 p-6">
+      {/* Modal Advogado */}
+      {advModal && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-background border rounded-xl shadow-xl w-full max-w-sm p-5 space-y-4">
+            <h3 className="font-semibold">Enviar ao advogado</h3>
+            <p className="text-sm text-muted-foreground">{advModal.nome}</p>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium">Observações (opcional)</label>
+              <textarea value={advObs} onChange={e=>setAdvObs(e.target.value)}
+                placeholder="Ex: Advogado Dr. João — (86) 99999-0000 — processo nº..."
+                className="w-full h-20 rounded-md border border-input bg-background px-3 py-2 text-sm resize-none" />
+            </div>
+            <div className="flex justify-end gap-2">
+              <button onClick={()=>setAdvModal(null)} className="px-4 py-2 text-sm border rounded-md">Cancelar</button>
+              <button onClick={()=>marcarEnviadoAdvogado(advModal.id, advObs)}
+                disabled={marcandoAdv===advModal.id}
+                className="px-4 py-2 text-sm bg-purple-600 text-white rounded-md disabled:opacity-50">
+                {marcandoAdv ? "Salvando..." : "Confirmar envio"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <div>
         <Link href="/dashboard/inquilinos" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-4">
           <ArrowLeft className="h-4 w-4"/>Voltar para inquilinos
