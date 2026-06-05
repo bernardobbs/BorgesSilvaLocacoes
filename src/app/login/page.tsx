@@ -82,7 +82,7 @@ export default function Login() {
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <Label htmlFor="password">Senha</Label>
-                <Link href="/esqueci-senha" className="text-xs text-muted-foreground hover:text-foreground">
+                <Link href="/recuperar-senha" className="text-xs text-muted-foreground hover:text-foreground">
                   Esqueceu a senha?
                 </Link>
               </div>
@@ -101,11 +101,6 @@ export default function Login() {
             </div>
           </div>
 
-          <div className="flex justify-end">
-            <Link href="/recuperar-senha" className="text-xs text-muted-foreground hover:text-foreground">
-              Esqueci minha senha
-            </Link>
-          </div>
           <Button type="submit" className="w-full h-11" disabled={isSubmitting}>
             {isSubmitting ? "Entrando..." : "Entrar"}
           </Button>
