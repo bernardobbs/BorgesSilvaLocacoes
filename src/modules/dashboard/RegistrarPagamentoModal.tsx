@@ -126,6 +126,16 @@ export default function RegistrarPagamentoModal({ open, onClose, onSuccess, inqu
       }
 
       toast.success("Pagamento registrado!", { description: `${mesLabel(mesReferencia)} · ${fmtBRL(totalFinal)}` });
+
+      // Enviar recibo por e-mail (silencioso — não bloqueia o fluxo)
+      fetch("/api/email/recibo", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ comprovante_id: compId }),
+      }).then(r => r.json()).then(r => {
+        if (r.success) toast.info("Recibo enviado por e-mail", { duration: 3000 });
+      }).catch(() => {}); // silencioso se falhar
+
       onSuccess();
       onClose();
     } catch (e) {
