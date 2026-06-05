@@ -23,7 +23,7 @@ const SCORE_CONFIG = {
   5: { stars: 5, label: "Excelente",  color: "text-green-500",  bg: "bg-green-50 border-green-200" },
 };
 
-export function ScoreBadge({ score, totalParcelas, pagas, vencidas, mediaDiasAtraso, pctPontualidade, size = "md" }: ScoreBadgeProps) {
+export function ScoreBadge({ score, scoreLabel, totalParcelas, pagas, vencidas, totalNotificacoes, totalAcordos, pontos, size = "sm" }: ScoreBadgeProps) {
   if (score === null || score === undefined) {
     return (
       <span className="text-xs text-muted-foreground italic">sem histórico</span>
