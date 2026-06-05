@@ -351,7 +351,7 @@ export default function PagamentosList({ initialInquilinos, initialComprovantes,
               dataVencimento: p.data_vencimento,
               situation: sit,
               dias: diasP,
-              inq, parcela: p, acordo,
+              parcela: p, acordo,
             });
           });
         });
