@@ -1,12 +1,13 @@
 // Based on Lugo — Copyright (c) 2024 Renilson Medeiros — MIT License
 "use client";
 import { useState } from "react";
+import ReajusteModal from "@/components/dashboard/ReajusteModal";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { User, Phone, Mail, Building2, Calendar, FileText, Edit, UserMinus, ArrowLeft } from "lucide-react";
+import { User, Phone, Mail, Building2, Calendar, FileText, Edit, UserMinus, ArrowLeft, TrendingUp } from "lucide-react";
 import EncerrarContratoModal from "@/components/dashboard/EncerrarContratoModal";
 import { useFormFormatting } from "@/lib/hooks/useFormFormatting";
 
@@ -22,6 +23,7 @@ export default function TenantDetailsClient({ tenant, historicoPag, historicoNot
   const router = useRouter();
   const { formatarCPF, formatarTelefone } = useFormFormatting();
   const [encerrarOpen, setEncerrarOpen] = useState(false);
+  const [reajusteOpen, setReajusteOpen] = useState(false);
 
   const acordoAtivo = acordos.find((a:any) => a.status === "ativo");
   const mesesCobertos = new Set<string>(
@@ -52,6 +54,12 @@ export default function TenantDetailsClient({ tenant, historicoPag, historicoNot
           <Link href={`/dashboard/inquilinos/${tenant.id}/editar`}>
             <Button variant="outline" size="sm"><Edit className="h-4 w-4 mr-1.5"/>Editar</Button>
           </Link>
+          {tenant.status === "ativo" && (
+            <Button variant="outline" size="sm" className="text-blue-600 border-blue-400"
+              onClick={() => setReajusteOpen(true)}>
+              <TrendingUp className="h-4 w-4 mr-1.5"/>Reajustar
+            </Button>
+          )}
           {tenant.status === "ativo" && (
             <Button variant="outline" size="sm" className="text-orange-600 border-orange-400"
               onClick={() => setEncerrarOpen(true)}>
@@ -214,6 +222,17 @@ export default function TenantDetailsClient({ tenant, historicoPag, historicoNot
         </Card>
       )}
 
+      {reajusteOpen && (
+        <ReajusteModal
+          open={reajusteOpen}
+          onClose={() => setReajusteOpen(false)}
+          onSuccess={() => { setReajusteOpen(false); }}
+          inquilinoId={tenant.id}
+          nomeInquilino={tenant.nome_completo}
+          valorAtual={tenant.valor_aluguel || 0}
+          indiceAtual={(tenant as any).indice_reajuste || "igpm"}
+        />
+      )}
       {/* Modal encerramento */}
       {encerrarOpen && (
         <EncerrarContratoModal

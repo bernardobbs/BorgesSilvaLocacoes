@@ -27,7 +27,7 @@ export default async function DashboardPage() {
   ] = await Promise.all([
     // Inquilinos ativos com imóvel
     supabase.from("inquilinos")
-      .select("id, nome_completo, telefone, valor_aluguel, dia_vencimento, multa_percentual, juros_percentual, imovel_id, imoveis!inner(id, titulo, do_center, proprietario_id)")
+      .select("id, nome_completo, telefone, valor_aluguel, dia_vencimento, multa_percentual, juros_percentual, imovel_id, data_inicio, data_ultimo_reajuste, indice_reajuste, imoveis!inner(id, titulo, do_center, proprietario_id)")
       .eq("imoveis.proprietario_id", user.id)
       .eq("status", "ativo"),
 

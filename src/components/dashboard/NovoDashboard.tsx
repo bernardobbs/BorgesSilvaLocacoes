@@ -1,7 +1,8 @@
 // Based on Lugo — Copyright (c) 2024 Renilson Medeiros — MIT License
 "use client";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import NotificacoesCobranca from "@/components/dashboard/NotificacoesCobranca";
+import ReajusteModal from "@/components/dashboard/ReajusteModal";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -23,7 +24,24 @@ interface Props {
 }
 
 export default function NovoDashboard({ inquilinos, compMes, imoveis, acordos, notificacoes }: Props) {
+  const [reajusteModal, setReajusteModal] = useState<{id:string;nome:string;valor:number;indice:string}|null>(null);
   const hoje = new Date();
+
+  /* ── Contratos para reajuste (12+ meses sem reajuste) ── */
+  const paraReajuste = useMemo(() => {
+    return inquilinos.filter((inq:any) => {
+      if (!inq.data_inicio) return false;
+      const inicio = new Date(inq.data_inicio);
+      const mesesContrato = (hoje.getFullYear() - inicio.getFullYear()) * 12 + (hoje.getMonth() - inicio.getMonth());
+      if (mesesContrato < 12) return false;
+      if (inq.data_ultimo_reajuste) {
+        const ultimo = new Date(inq.data_ultimo_reajuste);
+        const mesesReajuste = (hoje.getFullYear() - ultimo.getFullYear()) * 12 + (hoje.getMonth() - ultimo.getMonth());
+        return mesesReajuste >= 12;
+      }
+      return true; // nunca reajustado
+    });
+  }, [inquilinos, hoje]);
 
   /* ── Financeiro do mês ── */
   const financeiro = useMemo(() => {
@@ -290,6 +308,38 @@ export default function NovoDashboard({ inquilinos, compMes, imoveis, acordos, n
         <div className="space-y-4">
           <NotificacoesCobranca notificacoes={notificacoes} compact={true} />
 
+          {/* Reajuste anual */}
+          {paraReajuste.length > 0 && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm flex items-center justify-between">
+                  <span className="flex items-center gap-2"><TrendingUp className="h-4 w-4 text-blue-500"/>Reajuste anual pendente</span>
+                  <Badge className="bg-blue-100 text-blue-800 border-blue-200">{paraReajuste.length} contrato{paraReajuste.length!==1?"s":""}</Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                {paraReajuste.map((inq:any) => {
+                  const im = Array.isArray(inq.imoveis)?inq.imoveis[0]:inq.imoveis;
+                  const inicio = new Date(inq.data_inicio);
+                  const meses = (hoje.getFullYear()-inicio.getFullYear())*12+(hoje.getMonth()-inicio.getMonth());
+                  return (
+                    <div key={inq.id} className="flex items-center gap-3 px-4 py-3 border-b last:border-0">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm truncate">{inq.nome_completo}</p>
+                        <p className="text-xs text-muted-foreground">{im?.titulo} · {meses} meses de contrato</p>
+                      </div>
+                      <span className="text-sm font-medium shrink-0">{fmtBRL(inq.valor_aluguel)}</span>
+                      <Button size="sm" variant="outline" className="text-blue-700 border-blue-300 shrink-0"
+                        onClick={() => setReajusteModal({id:inq.id, nome:inq.nome_completo, valor:inq.valor_aluguel, indice:inq.indice_reajuste||"igpm"})}>
+                        Reajustar
+                      </Button>
+                    </div>
+                  );
+                })}
+              </CardContent>
+            </Card>
+          )}
+
           {proximasAcordo.length > 0 && (
             <Card>
               <CardHeader className="pb-2">
@@ -327,6 +377,18 @@ export default function NovoDashboard({ inquilinos, compMes, imoveis, acordos, n
           )}
         </div>
       </div>
+    </div>
+      {reajusteModal && (
+        <ReajusteModal
+          open={!!reajusteModal}
+          onClose={() => setReajusteModal(null)}
+          onSuccess={() => setReajusteModal(null)}
+          inquilinoId={reajusteModal.id}
+          nomeInquilino={reajusteModal.nome}
+          valorAtual={reajusteModal.valor}
+          indiceAtual={reajusteModal.indice}
+        />
+      )}
     </div>
   );
 }
