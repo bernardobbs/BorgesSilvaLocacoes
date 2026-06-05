@@ -5,18 +5,20 @@ import { Star } from "lucide-react";
 
 interface ScoreBadgeProps {
   score: number | null;
+  scoreLabel?: string;
   totalParcelas?: number;
   pagas?: number;
   vencidas?: number;
-  mediaDiasAtraso?: number;
-  pctPontualidade?: number;
+  totalNotificacoes?: number;
+  totalAcordos?: number;
+  pontos?: number;
   size?: "sm" | "md";
 }
 
 const SCORE_CONFIG = {
-  1: { stars: 1, label: "Crítico",    color: "text-red-500",    bg: "bg-red-50 border-red-200" },
-  2: { stars: 2, label: "Ruim",       color: "text-orange-500", bg: "bg-orange-50 border-orange-200" },
-  3: { stars: 3, label: "Regular",    color: "text-yellow-500", bg: "bg-yellow-50 border-yellow-200" },
+  1: { stars: 1, label: "Inadimplente crítico",  color: "text-red-500",    bg: "bg-red-50 border-red-200" },
+  2: { stars: 2, label: "Pagador com pendências",color: "text-orange-500", bg: "bg-orange-50 border-orange-200" },
+  3: { stars: 3, label: "Pagador regular",       color: "text-yellow-500", bg: "bg-yellow-50 border-yellow-200" },
   4: { stars: 4, label: "Bom",        color: "text-blue-500",   bg: "bg-blue-50 border-blue-200" },
   5: { stars: 5, label: "Excelente",  color: "text-green-500",  bg: "bg-green-50 border-green-200" },
 };
