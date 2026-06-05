@@ -46,7 +46,7 @@ const initial: TenantFormData = {
   rentDay: "10", startDate: undefined, endDate: undefined,
   rentValue: "", observations: "",
   multaPercentual: "10", jurosPercentual: "1", correcaoMonetaria: "igpm",
-  garantia: "nenhuma", numeroContrato: "",
+  garantia: "nenhuma", numeroContrato: "", condominioValue: "0",
   // Fiador
   fiadorNome: "", fiadorCpf: "", fiadorRg: "", fiadorTelefone: "",
   fiadorEmail: "", fiadorProfissao: "", fiadorRenda: "",
