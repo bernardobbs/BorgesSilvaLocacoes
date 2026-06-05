@@ -646,3 +646,49 @@ export function ConfigLocadorSection() {
     </Card>
   );
 }
+
+// =====================================================
+// ALTERAR SENHA
+// =====================================================
+export function AlterarSenhaSection() {
+  const [senha, setSenha] = useState("");
+  const [confirmar, setConfirmar] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [erro, setErro] = useState("");
+
+  async function salvar() {
+    if (senha !== confirmar) { setErro("As senhas não coincidem."); return; }
+    if (senha.length < 6) { setErro("Mínimo 6 caracteres."); return; }
+    setLoading(true); setErro("");
+    const { error } = await supabase.auth.updateUser({ password: senha });
+    if (error) setErro(error.message);
+    else { setSenha(""); setConfirmar(""); toast.success("Senha alterada!"); }
+    setLoading(false);
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">Alterar senha</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-1.5">
+            <Label>Nova senha</Label>
+            <Input type="password" value={senha} onChange={e => setSenha(e.target.value)} placeholder="Mínimo 6 caracteres" />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Confirmar senha</Label>
+            <Input type="password" value={confirmar} onChange={e => setConfirmar(e.target.value)} placeholder="Repita a senha" />
+          </div>
+        </div>
+        {erro && <p className="text-sm text-red-600">{erro}</p>}
+        <div className="flex justify-end">
+          <Button onClick={salvar} disabled={loading || !senha}>
+            {loading ? "Salvando..." : "Alterar senha"}
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}

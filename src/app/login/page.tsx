@@ -101,6 +101,11 @@ export default function Login() {
             </div>
           </div>
 
+          <div className="flex justify-end">
+            <Link href="/recuperar-senha" className="text-xs text-muted-foreground hover:text-foreground">
+              Esqueci minha senha
+            </Link>
+          </div>
           <Button type="submit" className="w-full h-11" disabled={isSubmitting}>
             {isSubmitting ? "Entrando..." : "Entrar"}
           </Button>

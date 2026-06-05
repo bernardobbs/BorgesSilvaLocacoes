@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import Settings, { MembrosSection, ConfigLocadorSection } from "@/modules/dashboard/Settings";
+import Settings, { MembrosSection, ConfigLocadorSection, AlterarSenhaSection } from "@/modules/dashboard/Settings";
 import ConfigNotificacoes from "@/components/dashboard/ConfigNotificacoes";
 import { redirect } from "next/navigation";
 
@@ -25,6 +25,7 @@ export default async function SettingsPage() {
       {profile?.role === 'admin' && <MembrosSection />}
       {profile?.role === 'admin' && <ConfigNotificacoes />}
       <ConfigLocadorSection />
+      <AlterarSenhaSection />
     </div>
   );
 }
