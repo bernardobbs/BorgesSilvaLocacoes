@@ -292,11 +292,10 @@ export default function PagamentosList({ initialInquilinos, initialComprovantes,
           dataVencimento: string; // YYYY-MM-DD
           situation: "open" | "expired" | "billed" | "em_acordo";
           dias: number;
-          inq?: Inquilino;
+          inq?: Inquilino | null;
           comp?: Comprovante;
           parcela?: any;
           acordo?: any;
-          inq?: Inquilino | null;
           im?: { id: string; titulo: string } | null;
         };
 
