@@ -296,6 +296,7 @@ export default function PagamentosList({ initialInquilinos, initialComprovantes,
           comp?: Comprovante;
           parcela?: any;
           acordo?: any;
+          inq?: Inquilino | null;
           im?: { id: string; titulo: string } | null;
         };
 
@@ -345,6 +346,7 @@ export default function PagamentosList({ initialInquilinos, initialComprovantes,
               key: `acordo-${p.id}`,
               tipo: "acordo",
               nome: inq?.nome_completo || "",
+              inq: inq,
               imovelTitulo: im?.titulo || "",
               valor: p.valor,
               dataVencimento: p.data_vencimento,

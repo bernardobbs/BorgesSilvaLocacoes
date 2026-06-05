@@ -78,22 +78,24 @@ export default function RegistrarPagamentoModal({ open, onClose, onSuccess, inqu
 
       if (compId) {
         // Atualizar existente
-        await supabase.from("comprovantes").update({
+        const { error: updErr } = await supabase.from("comprovantes").update({
           valor: inquilino.valor_aluguel, valor_multa: v_multa, valor_juros: v_juros,
           situation: "billed", data_pagamento: dataPag,
           forma_pagamento: forma, descricao: obs || null,
         }).eq("id", compId);
+        if (updErr) throw new Error(`Erro ao atualizar comprovante: ${updErr.message}`);
       } else {
         // Criar novo
         const venc = new Date(mesReferencia);
         venc.setDate(inquilino.dia_vencimento);
-        const { data: novo } = await supabase.from("comprovantes").insert({
+        const { data: novo, error: insErr } = await supabase.from("comprovantes").insert({
           inquilino_id: inquilino.id, imovel_id: inquilino.imovel_id,
           tipo: "pagamento", mes_referencia: mesReferencia,
           valor: inquilino.valor_aluguel, valor_multa: v_multa, valor_juros: v_juros,
           situation: "billed", data_vencimento: venc.toISOString().split("T")[0],
           data_pagamento: dataPag, forma_pagamento: forma, descricao: obs || null,
         }).select().single();
+        if (insErr) throw new Error(`Erro ao criar comprovante: ${insErr.message}`);
         compId = novo?.id;
       }
 
@@ -138,8 +140,9 @@ export default function RegistrarPagamentoModal({ open, onClose, onSuccess, inqu
 
       onSuccess();
       onClose();
-    } catch (e) {
-      toast.error("Erro ao registrar pagamento");
+    } catch (e: any) {
+      console.error("Erro pagamento:", e);
+      toast.error("Erro ao registrar pagamento", { description: e?.message || "Tente novamente" });
     } finally {
       setLoading(false);
     }
