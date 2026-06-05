@@ -213,6 +213,7 @@ export default function TenantForm() {
         data_inicio: formData.startDate ? new Date(formData.startDate.getTime() - formData.startDate.getTimezoneOffset() * 60000).toISOString().split("T")[0] : null,
         data_fim: formData.endDate ? new Date(formData.endDate.getTime() - formData.endDate.getTimezoneOffset() * 60000).toISOString().split("T")[0] : null,
         valor_aluguel: rentAmount,
+        valor_condominio: parseFloat(formData.condominioValue?.replace(',','.') || '0') || 0,
         observacoes: formData.observations || null,
         multa_percentual: parseFloat(formData.multaPercentual) || 10,
         juros_percentual: parseFloat(formData.jurosPercentual) || 1,
