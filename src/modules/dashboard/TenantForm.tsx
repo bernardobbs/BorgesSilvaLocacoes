@@ -115,6 +115,7 @@ export default function TenantForm() {
           correcaoMonetaria: data.correcao_monetaria || "igpm",
           garantia: data.garantia || "nenhuma",
           numeroContrato: data.numero_contrato || "",
+          condominioValue: data.valor_condominio?.toLocaleString("pt-BR", { minimumFractionDigits: 2 }) || "0",
           // Fiador
           fiadorNome: data.fiador_nome || "",
           fiadorCpf: formatarCPF(data.fiador_cpf || ""),
