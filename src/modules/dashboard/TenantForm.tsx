@@ -24,6 +24,7 @@ interface TenantFormData {
   rentValue: string; observations: string;
   multaPercentual: string; jurosPercentual: string; correcaoMonetaria: string;
   garantia: string; numeroContrato: string;
+  condominioValue: string;
   // Fiador
   fiadorNome: string; fiadorCpf: string; fiadorRg: string; fiadorTelefone: string;
   fiadorEmail: string; fiadorProfissao: string; fiadorRenda: string;
