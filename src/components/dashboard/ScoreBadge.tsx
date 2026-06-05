@@ -46,11 +46,14 @@ export function ScoreBadge({ score, scoreLabel, totalParcelas, pagas, vencidas, 
             <span className={cfg.color}>{cfg.label}</span>
           </div>
         </TooltipTrigger>
-        <TooltipContent side="top" className="text-xs space-y-1 max-w-[200px]">
-          <p className="font-medium">Score de pontualidade</p>
-          {totalParcelas !== undefined && <p>Parcelas: {pagas} pagas / {vencidas} vencidas / {totalParcelas} total</p>}
-          {pctPontualidade !== undefined && <p>Pagas no prazo: {pctPontualidade}%</p>}
-          {mediaDiasAtraso !== undefined && mediaDiasAtraso > 0 && <p>Média de atraso: {mediaDiasAtraso} dias</p>}
+        <TooltipContent side="top" className="text-xs space-y-1 max-w-[220px]">
+          <p className="font-medium">{scoreLabel || cfg.label}</p>
+          {pontos !== undefined && <p className="text-muted-foreground">Pontuação: {pontos}/100</p>}
+          {totalParcelas !== undefined && <p>Meses no histórico: {totalParcelas}</p>}
+          {pagas !== undefined && pagas > 0 && <p className="text-green-600">✓ Pagos em dia: {pagas}</p>}
+          {vencidas !== undefined && vencidas > 0 && <p className="text-red-600">✗ Vencidos: {vencidas}</p>}
+          {totalNotificacoes !== undefined && totalNotificacoes > 0 && <p className="text-orange-500">📩 Cobranças: {totalNotificacoes}</p>}
+          {totalAcordos !== undefined && totalAcordos > 0 && <p className="text-blue-500">🤝 Acordos: {totalAcordos}</p>}
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>
