@@ -97,9 +97,9 @@ export default function RegistrarPagamentoModal({ open, onClose, onSuccess, inqu
         compId = novo?.id;
       }
 
-      // Gerar PDF
+      // Gerar PDF (não-bloqueante)
       if (compId && user) {
-        const res = await fetch("/api/pdf/generate", {
+        fetch("/api/pdf/generate", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -117,12 +117,12 @@ export default function RegistrarPagamentoModal({ open, onClose, onSuccess, inqu
               observations: obs || undefined,
             },
           }),
-        });
-        const pdf = await res.json();
-        if (pdf.success && pdf.pdfUrl) {
-          await supabase.from("comprovantes").update({ pdf_url: pdf.pdfUrl }).eq("id", compId);
-          window.open(pdf.pdfUrl, "_blank");
-        }
+        }).then(r => r.json()).then(pdf => {
+          if (pdf.success && pdf.pdfUrl) {
+            supabase.from("comprovantes").update({ pdf_url: pdf.pdfUrl }).eq("id", compId);
+            window.open(pdf.pdfUrl, "_blank");
+          }
+        }).catch(() => {});
       }
 
       toast.success("Pagamento registrado!", { description: `${mesLabel(mesReferencia)} · ${fmtBRL(totalFinal)}` });
