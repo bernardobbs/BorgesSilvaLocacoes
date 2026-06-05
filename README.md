@@ -138,4 +138,4 @@ URL de produção: [borges-silva-locacoes.vercel.app](https://borges-silva-locac
 
 ---
 
-*Sistema de uso familiar — Borges Silva Locações · Campo Maior, PI*
+*Sistema de uso familiar — Borges Silva Locações · Parnaíba, PI*
