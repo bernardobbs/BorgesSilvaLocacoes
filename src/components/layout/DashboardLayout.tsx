@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import {
+import { FileSpreadsheet, usePathname, useRouter } from "next/navigation";
+import { FileSpreadsheet, Button } from "@/components/ui/button";
+import { FileSpreadsheet, Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { FileSpreadsheet,
   Home,
   Building2,
   Users,
@@ -20,14 +20,14 @@ import {
   ChevronLeft,
   ChevronRight
 , DollarSign, Handshake, MessageCircle } from "lucide-react";
-import { useState } from "react";
-import { toast } from "sonner";
-import { cn } from "@/lib/utils";
-import { useAuth } from "@/contexts/AuthContext";
-import { Logo } from "@/components/ui/Logo";
-import { Paywall } from "@/components/dashboard/Paywall";
-import { CompleteProfileForm } from "@/components/dashboard/CompleteProfileForm";
-import {
+import { FileSpreadsheet, useState } from "react";
+import { FileSpreadsheet, toast } from "sonner";
+import { FileSpreadsheet, cn } from "@/lib/utils";
+import { FileSpreadsheet, useAuth } from "@/contexts/AuthContext";
+import { FileSpreadsheet, Logo } from "@/components/ui/Logo";
+import { FileSpreadsheet, Paywall } from "@/components/dashboard/Paywall";
+import { FileSpreadsheet, CompleteProfileForm } from "@/components/dashboard/CompleteProfileForm";
+import { FileSpreadsheet,
   Tooltip,
   TooltipContent,
   TooltipProvider,
@@ -45,6 +45,7 @@ const menuItems = [
   { icon: DollarSign, label: "Pagamentos", href: "/dashboard/pagamentos" },
   { icon: Handshake, label: "Acordos", href: "/dashboard/acordos" },
   { icon: MessageCircle, label: "Cobranças", href: "/dashboard/cobrancas" },
+  { icon: FileSpreadsheet, label: "Relatórios", href: "/dashboard/relatorios" },
   { icon: Settings, label: "Configurações", href: "/dashboard/configuracoes" },
 ];
 
