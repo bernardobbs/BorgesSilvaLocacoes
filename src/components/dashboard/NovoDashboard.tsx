@@ -377,7 +377,6 @@ export default function NovoDashboard({ inquilinos, compMes, imoveis, acordos, n
           )}
         </div>
       </div>
-    </div>
       {reajusteModal && (
         <ReajusteModal
           open={!!reajusteModal}
