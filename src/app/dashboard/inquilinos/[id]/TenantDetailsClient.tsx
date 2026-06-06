@@ -1,5 +1,6 @@
 // Based on Lugo — Copyright (c) 2024 Renilson Medeiros — MIT License
 "use client";
+import { toast } from "sonner";
 import { useState } from "react";
 import ReajusteModal from "@/components/dashboard/ReajusteModal";
 import { useRouter } from "next/navigation";
@@ -7,7 +8,7 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { User, Phone, Mail, Building2, Calendar, FileText, Edit, UserMinus, ArrowLeft, TrendingUp } from "lucide-react";
+import { User, Phone, Mail, Building2, Calendar, FileText, Edit, UserMinus, ArrowLeft, TrendingUp, Loader2 } from "lucide-react";
 import EncerrarContratoModal from "@/components/dashboard/EncerrarContratoModal";
 import { useFormFormatting } from "@/lib/hooks/useFormFormatting";
 
@@ -23,6 +24,22 @@ export default function TenantDetailsClient({ tenant, historicoPag, historicoNot
   const router = useRouter();
   const { formatarCPF, formatarTelefone } = useFormFormatting();
   const [encerrarOpen, setEncerrarOpen] = useState(false);
+  const [gerandoContrato, setGerandoContrato] = useState(false);
+
+  async function gerarContrato() {
+    setGerandoContrato(true);
+    try {
+      const res = await fetch("/api/pdf/contrato", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ inquilino_id: tenant.id }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error);
+      window.open(json.pdfUrl, "_blank");
+      toast.success("Contrato gerado!");
+    } catch (e: any) { toast.error("Erro ao gerar contrato", { description: e.message }); }
+    finally { setGerandoContrato(false); }
+  }
   const [reajusteOpen, setReajusteOpen] = useState(false);
 
   const acordoAtivo = acordos.find((a:any) => a.status === "ativo");
@@ -107,6 +124,31 @@ export default function TenantDetailsClient({ tenant, historicoPag, historicoNot
           <div><p className="text-muted-foreground">Aluguel</p><p className="font-semibold text-primary">{fmtV(tenant.valor_aluguel)}/mês</p></div>
           <div><p className="text-muted-foreground">Garantia</p><p className="font-medium capitalize">{tenant.garantia||"nenhuma"}</p></div>
           {tenant.numero_contrato && <div><p className="text-muted-foreground">Contrato</p><p className="font-medium">{tenant.numero_contrato}</p></div>}
+          {(tenant as any).contrato_pdf_url ? (
+            <div className="col-span-2 flex items-center justify-between bg-green-50 rounded-lg p-2.5">
+              <div>
+                <p className="text-xs font-medium text-green-700">📄 Contrato em PDF disponível</p>
+                {(tenant as any).contrato_gerado_em && (
+                  <p className="text-xs text-muted-foreground">Gerado em {fmtD((tenant as any).contrato_gerado_em.split("T")[0])}</p>
+                )}
+              </div>
+              <div className="flex gap-2">
+                <a href={(tenant as any).contrato_pdf_url} target="_blank" rel="noreferrer">
+                  <Button size="sm" variant="outline" className="text-green-700 border-green-400">Ver PDF</Button>
+                </a>
+                <Button size="sm" variant="outline" onClick={gerarContrato} disabled={gerandoContrato}>
+                  {gerandoContrato ? "..." : "↻ Regerar"}
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="col-span-2">
+              <Button size="sm" variant="outline" onClick={gerarContrato} disabled={gerandoContrato}
+                className="gap-1.5">
+                {gerandoContrato ? <><Loader2 className="h-3.5 w-3.5 animate-spin"/>Gerando...</> : <>📄 Gerar contrato PDF</>}
+              </Button>
+            </div>
+          )}
           {tenant.multa_percentual && <div><p className="text-muted-foreground">Multa / Juros</p><p className="font-medium">{tenant.multa_percentual}% / {tenant.juros_percentual}% a.m.</p></div>}
         </CardContent>
       </Card>
