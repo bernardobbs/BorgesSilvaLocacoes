@@ -107,15 +107,17 @@ body{font-family:Arial,sans-serif;background:#f5f5f5;margin:0;padding:20px}
       html,
     });
 
-    // Log auditoria
-    await supabase.from("auditoria_recibos").insert({
-      comprovante_id,
-      receipt_number: (comp as any).receipt_number,
-      receipt_hash: (comp as any).receipt_hash,
-      operacao: "email_enviado",
-      usuario_id: session.user.id,
-      detalhe: `E-mail de recibo enviado para ${inq.email}`,
-    }).catch(() => {});
+    // Log auditoria (não-bloqueante)
+    try {
+      await supabase.from("auditoria_recibos").insert({
+        comprovante_id,
+        receipt_number: (comp as any).receipt_number,
+        receipt_hash: (comp as any).receipt_hash,
+        operacao: "email_enviado",
+        usuario_id: session.user.id,
+        detalhe: `E-mail de recibo enviado para ${inq.email}`,
+      });
+    } catch {}
 
     return NextResponse.json({ success: true });
   } catch (err: any) {
