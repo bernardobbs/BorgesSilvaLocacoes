@@ -14,7 +14,7 @@ export default async function TenantDetailPage({ params }: { params: Promise<{ i
       .select("id, nome_completo, cpf, cnpj, tipo_pessoa, telefone, email, imovel_id, dia_vencimento, data_inicio, data_fim, status, observacoes, valor_aluguel, multa_percentual, juros_percentual, garantia, numero_contrato, imoveis(id, titulo, endereco_rua, endereco_numero, endereco_bairro, endereco_cidade)")
       .eq("id", id).maybeSingle(),
     supabase.from("comprovantes")
-      .select("id, mes_referencia, valor, valor_multa, valor_juros, situation, data_vencimento, data_pagamento, forma_pagamento")
+      .select("id, mes_referencia, valor, valor_multa, valor_juros, situation, data_vencimento, data_pagamento, forma_pagamento, receipt_hash, receipt_number")
       .eq("inquilino_id", id).order("mes_referencia", { ascending: false }),
     supabase.from("notificacoes_cobranca")
       .select("id, estagio, dias_atraso, valor_total, enviado_em, mes_referencia, config_notificacoes(label), profiles(nome_completo)")

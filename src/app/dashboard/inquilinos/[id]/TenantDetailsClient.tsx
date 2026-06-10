@@ -191,6 +191,13 @@ export default function TenantDetailsClient({ tenant, historicoPag, historicoNot
                       {p.situation==="expired" && !emAcordo && <span className="text-red-700">✗ Vencido</span>}
                       {p.situation==="open" && <span className="text-blue-700">Em aberto</span>}
                     </span>
+                    {p.receipt_hash && (
+                      <span className="ml-1 text-xs font-mono text-muted-foreground bg-muted px-1.5 py-0.5 rounded flex items-center gap-1 cursor-pointer"
+                        title={`Hash completo: ${p.receipt_hash}`}
+                        onClick={() => navigator.clipboard.writeText(p.receipt_hash).then(()=>alert("Hash copiado!"))}>
+                        🔐 {p.receipt_hash.slice(0,12).toUpperCase()}
+                      </span>
+                    )}
                   </div>
                 );
               })}

@@ -127,6 +127,15 @@ export default function RegistrarPagamentoModal({ open, onClose, onSuccess, inqu
         }).catch(() => {});
       }
 
+      // Gerar hash de autenticação do recibo
+      if (compId) {
+        fetch("/api/recibo/assinar", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ comprovante_id: compId }),
+        }).catch(() => {});
+      }
+
       toast.success("Pagamento registrado!", { description: `${mesLabel(mesReferencia)} · ${fmtBRL(totalFinal)}` });
 
       // Enviar recibo por e-mail (silencioso — não bloqueia o fluxo)

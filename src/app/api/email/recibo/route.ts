@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
 
     const { data: comp } = await supabase
       .from("comprovantes")
-      .select(`id, mes_referencia, valor, valor_multa, valor_juros,
+      .select(`id, mes_referencia, valor, valor_multa, valor_juros, receipt_hash, receipt_number,
         data_vencimento, data_pagamento, forma_pagamento,
         inquilinos (id, nome_completo, email,
           imoveis (titulo, endereco_rua, endereco_numero, endereco_bairro, endereco_cidade))`)
@@ -84,6 +84,13 @@ body{font-family:Arial,sans-serif;background:#f5f5f5;margin:0;padding:20px}
   ${(comp.valor_multa||0)>0?`<div class="row"><span class="lbl">Aluguel base</span><span class="val">${fmtBRL(comp.valor||0)}</span></div><div class="row"><span class="lbl">Multa + Juros</span><span class="val">${fmtBRL((comp.valor_multa||0)+(comp.valor_juros||0))}</span></div>`:""}
   <div class="total"><span class="lbl">Total pago</span><span class="val">${fmtBRL(total)}</span></div>
   <p style="font-size:12px;color:#aaa;margin:0">Este documento serve como comprovante de pagamento do aluguel identificado acima.</p>
+  ${(comp as any).receipt_hash ? `
+  <div style="margin-top:20px;padding:14px;background:#f8f8f8;border-radius:6px;border:1px solid #e0e0e0">
+    <p style="font-size:11px;font-weight:bold;color:#555;margin:0 0 6px;text-transform:uppercase;letter-spacing:.05em">🔐 Código de Autenticidade</p>
+    <p style="font-size:11px;color:#666;margin:0 0 4px">Recibo: <strong>${(comp as any).receipt_number || "—"}</strong></p>
+    <p style="font-size:10px;color:#888;font-family:monospace;word-break:break-all;margin:0">${(comp as any).receipt_hash}</p>
+    <p style="font-size:10px;color:#aaa;margin:6px 0 0">Este código identifica exclusivamente este recibo e não pode ser adulterado.</p>
+  </div>` : ""}
 </div>
 <div class="ft"><strong>${locadorNome}</strong><br>${locadorTel?`Tel: ${locadorTel} · `:""}Parnaíba – PI${gestorNome?`<br>Gerenciado por: ${gestorNome}`:""}</div>
 </div></body></html>`;
@@ -99,6 +106,16 @@ body{font-family:Arial,sans-serif;background:#f5f5f5;margin:0;padding:20px}
       subject: `Recibo de pagamento — ${mesLabel(comp.mes_referencia)} · ${im?.titulo||"Locação"}`,
       html,
     });
+
+    // Log auditoria
+    await supabase.from("auditoria_recibos").insert({
+      comprovante_id,
+      receipt_number: (comp as any).receipt_number,
+      receipt_hash: (comp as any).receipt_hash,
+      operacao: "email_enviado",
+      usuario_id: session.user.id,
+      detalhe: `E-mail de recibo enviado para ${inq.email}`,
+    }).catch(() => {});
 
     return NextResponse.json({ success: true });
   } catch (err: any) {
