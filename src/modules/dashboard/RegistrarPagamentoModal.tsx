@@ -127,25 +127,30 @@ export default function RegistrarPagamentoModal({ open, onClose, onSuccess, inqu
         }).catch(() => {});
       }
 
-      // Gerar hash de autenticação do recibo
+      toast.success("Pagamento registrado!", { description: `${mesLabel(mesReferencia)} · ${fmtBRL(totalFinal)}` });
+
+      // 1. Gerar hash → 2. Enviar e-mail com hash já salvo no banco
       if (compId) {
         fetch("/api/recibo/assinar", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ comprovante_id: compId }),
-        }).catch(() => {});
+        })
+          .then(r => r.json())
+          .then(() => {
+            // Hash salvo no banco — agora enviar e-mail
+            return fetch("/api/email/recibo", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ comprovante_id: compId }),
+            });
+          })
+          .then(r => r.json())
+          .then(r => {
+            if (r.success) toast.info("Recibo enviado por e-mail", { duration: 3000 });
+          })
+          .catch(() => {}); // silencioso se falhar
       }
-
-      toast.success("Pagamento registrado!", { description: `${mesLabel(mesReferencia)} · ${fmtBRL(totalFinal)}` });
-
-      // Enviar recibo por e-mail (silencioso — não bloqueia o fluxo)
-      fetch("/api/email/recibo", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ comprovante_id: compId }),
-      }).then(r => r.json()).then(r => {
-        if (r.success) toast.info("Recibo enviado por e-mail", { duration: 3000 });
-      }).catch(() => {}); // silencioso se falhar
 
       onSuccess();
       onClose();
