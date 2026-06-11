@@ -72,6 +72,8 @@ export default function RegistrarPagamentoModal({ open, onClose, onSuccess, inqu
       toast.error("Sessão expirada. Recarregue a página e tente novamente.");
       return;
     }
+    // Timeout de segurança — garante que setLoading(false) é sempre chamado
+    const timeout = setTimeout(() => { setLoading(false); }, 15000);
     try {
       setLoading(true);
       const v_multa = aplicarEncargos && atrasado ? enc.multa : 0;
@@ -81,13 +83,12 @@ export default function RegistrarPagamentoModal({ open, onClose, onSuccess, inqu
 
       if (compId) {
         // Atualizar existente
-        const { data: updData, error: updErr } = await supabase.from("comprovantes").update({
+        const { error: updErr } = await supabase.from("comprovantes").update({
           valor: inquilino.valor_aluguel, valor_multa: v_multa, valor_juros: v_juros,
           situation: "billed", data_pagamento: dataPag,
           forma_pagamento: forma, descricao: obs || null,
-        }).eq("id", compId).select();
+        }).eq("id", compId);
         if (updErr) throw new Error(`Erro ao atualizar: ${updErr.message}`);
-        if (!updData || updData.length === 0) throw new Error("Sem permissão para atualizar. Verifique se está logado corretamente.");
       } else {
         // Criar novo
         const venc = new Date(mesReferencia);
@@ -162,6 +163,7 @@ export default function RegistrarPagamentoModal({ open, onClose, onSuccess, inqu
       console.error("Erro pagamento:", e);
       toast.error("Erro ao registrar pagamento", { description: e?.message || "Tente novamente" });
     } finally {
+      clearTimeout(timeout);
       setLoading(false);
     }
   }
