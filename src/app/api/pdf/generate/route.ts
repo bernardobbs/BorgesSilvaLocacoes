@@ -26,6 +26,7 @@ interface RequestBody {
     userId: string;
     propertyId: string;
     tenantId: string;
+    comprovante_id?: string;
 }
 
 const months = [
@@ -55,13 +56,26 @@ export async function POST(request: NextRequest) {
         );
 
         const body: RequestBody = await request.json();
-        const { data, userId, propertyId } = body;
+        const { data, userId, propertyId, comprovante_id } = body;
 
         // 1. Validar autenticação e obter UID real da sessão
         const { data: { user }, error: authError } = await supabase.auth.getUser();
 
         if (authError || !user) {
             return NextResponse.json({ success: false, error: 'Não autorizado' }, { status: 401 });
+        }
+
+        // Buscar hash de autenticação se comprovante_id fornecido
+        let receiptHash: string | null = null;
+        let receiptNumber: string | null = null;
+        if (comprovante_id) {
+            const { data: comp } = await supabase
+                .from('comprovantes')
+                .select('receipt_hash, receipt_number')
+                .eq('id', comprovante_id)
+                .maybeSingle();
+            receiptHash = comp?.receipt_hash || null;
+            receiptNumber = comp?.receipt_number || null;
         }
 
         // 2. Blindagem: Validar se o userId do body é o mesmo da sessão (evita Personagem/Spoofing)
@@ -198,6 +212,35 @@ export async function POST(request: NextRequest) {
         doc.setTextColor(100, 100, 100);
         const paymentDate = new Date(data.paymentDate);
         doc.text(`Data do pagamento: ${paymentDate.toLocaleDateString('pt-BR')}`, 105, yPos, { align: 'center' });
+
+        // Hash de autenticação
+        if (receiptHash) {
+            yPos += 12;
+            doc.setDrawColor(220, 220, 220);
+            doc.line(20, yPos - 3, 190, yPos - 3);
+            yPos += 2;
+            doc.setFontSize(8);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(80, 80, 80);
+            doc.text('AUTENTICAÇÃO DIGITAL', 105, yPos, { align: 'center' });
+            yPos += 5;
+            doc.setFont('helvetica', 'normal');
+            doc.setTextColor(100, 100, 100);
+            if (receiptNumber) {
+                doc.text(`Recibo: ${receiptNumber}`, 105, yPos, { align: 'center' });
+                yPos += 5;
+            }
+            doc.setFont('courier', 'normal');
+            doc.setFontSize(7);
+            doc.setTextColor(60, 60, 60);
+            doc.text(receiptHash, 105, yPos, { align: 'center' });
+            yPos += 4;
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(7);
+            doc.setTextColor(150, 150, 150);
+            doc.text('Este código identifica exclusivamente este recibo e não pode ser adulterado.', 105, yPos, { align: 'center' });
+            yPos += 2;
+        }
 
         // Observações
         if (data.observations) {
