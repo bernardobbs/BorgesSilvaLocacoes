@@ -68,7 +68,10 @@ export default function RegistrarPagamentoModal({ open, onClose, onSuccess, inqu
   const totalFinal = aplicarEncargos && atrasado ? enc.total : inquilino.valor_aluguel;
 
   async function confirmar() {
-    if (!user) return;
+    if (!user) {
+      toast.error("Sessão expirada. Recarregue a página e tente novamente.");
+      return;
+    }
     try {
       setLoading(true);
       const v_multa = aplicarEncargos && atrasado ? enc.multa : 0;
@@ -78,12 +81,13 @@ export default function RegistrarPagamentoModal({ open, onClose, onSuccess, inqu
 
       if (compId) {
         // Atualizar existente
-        const { error: updErr } = await supabase.from("comprovantes").update({
+        const { data: updData, error: updErr } = await supabase.from("comprovantes").update({
           valor: inquilino.valor_aluguel, valor_multa: v_multa, valor_juros: v_juros,
           situation: "billed", data_pagamento: dataPag,
           forma_pagamento: forma, descricao: obs || null,
-        }).eq("id", compId);
-        if (updErr) throw new Error(`Erro ao atualizar comprovante: ${updErr.message}`);
+        }).eq("id", compId).select();
+        if (updErr) throw new Error(`Erro ao atualizar: ${updErr.message}`);
+        if (!updData || updData.length === 0) throw new Error("Sem permissão para atualizar. Verifique se está logado corretamente.");
       } else {
         // Criar novo
         const venc = new Date(mesReferencia);
@@ -95,7 +99,7 @@ export default function RegistrarPagamentoModal({ open, onClose, onSuccess, inqu
           situation: "billed", data_vencimento: venc.toISOString().split("T")[0],
           data_pagamento: dataPag, forma_pagamento: forma, descricao: obs || null,
         }).select().single();
-        if (insErr) throw new Error(`Erro ao criar comprovante: ${insErr.message}`);
+        if (insErr) throw new Error(`Erro ao criar: ${insErr.message} (código: ${insErr.code})`);
         compId = novo?.id;
       }
 
