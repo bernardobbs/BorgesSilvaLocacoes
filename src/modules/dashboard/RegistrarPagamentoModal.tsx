@@ -104,57 +104,50 @@ export default function RegistrarPagamentoModal({ open, onClose, onSuccess, inqu
         compId = novo?.id;
       }
 
-      // Gerar PDF (não-bloqueante)
-      if (compId && user) {
-        fetch("/api/pdf/generate", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            userId: user.id, propertyId: inquilino.imovel_id,
-            data: {
-              referenceMonth: mesReferencia.split("-")[1],
-              referenceYear: mesReferencia.split("-")[0],
-              tenantName: inquilino.nome_completo,
-              tenantCpf: inquilino.tipo_pessoa === "juridica" ? inquilino.cnpj : inquilino.cpf,
-              propertyName: inquilino.imoveis?.titulo || "",
-              propertyAddress: `${inquilino.imoveis?.endereco_rua}, ${inquilino.imoveis?.endereco_numero}`,
-              rentValue: fmtBRL(inquilino.valor_aluguel),
-              totalValue: fmtBRL(totalFinal),
-              paymentDate: dataPag,
-              observations: obs || undefined,
-            },
-          }),
-        }).then(r => r.json()).then(pdf => {
-          if (pdf.success && pdf.pdfUrl) {
-            supabase.from("comprovantes").update({ pdf_url: pdf.pdfUrl }).eq("id", compId);
-            window.open(pdf.pdfUrl, "_blank");
-          }
-        }).catch(() => {});
-      }
-
       toast.success("Pagamento registrado!", { description: `${mesLabel(mesReferencia)} · ${fmtBRL(totalFinal)}` });
 
-      // 1. Gerar hash → 2. Enviar e-mail com hash já salvo no banco
-      if (compId) {
+      // Sequência: 1. Hash → 2. PDF (com hash) → 3. E-mail (com hash)
+      if (compId && user) {
+        const _cId = compId;
+        const _pdfBody = {
+          userId: user.id, propertyId: inquilino.imovel_id,
+          comprovante_id: _cId, tenantId: inquilino.id,
+          data: {
+            referenceMonth: mesReferencia.split("-")[1],
+            referenceYear: mesReferencia.split("-")[0],
+            tenantName: inquilino.nome_completo,
+            tenantCpf: inquilino.tipo_pessoa === "juridica" ? inquilino.cnpj : inquilino.cpf,
+            propertyName: inquilino.imoveis?.titulo || "",
+            propertyAddress: `${inquilino.imoveis?.endereco_rua}, ${inquilino.imoveis?.endereco_numero}`,
+            rentValue: fmtBRL(inquilino.valor_aluguel),
+            totalValue: fmtBRL(totalFinal),
+            paymentDate: dataPag,
+            observations: obs || undefined,
+          },
+        };
         fetch("/api/recibo/assinar", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ comprovante_id: compId }),
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ comprovante_id: _cId }),
         })
           .then(r => r.json())
-          .then(() => {
-            // Hash salvo no banco — agora enviar e-mail
+          .then(() => fetch("/api/pdf/generate", {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(_pdfBody),
+          }))
+          .then(r => r.json())
+          .then(pdf => {
+            if (pdf.success && pdf.pdfUrl) {
+              supabase.from("comprovantes").update({ pdf_url: pdf.pdfUrl }).eq("id", _cId);
+              window.open(pdf.pdfUrl, "_blank");
+            }
             return fetch("/api/email/recibo", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ comprovante_id: compId }),
+              method: "POST", headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ comprovante_id: _cId }),
             });
           })
           .then(r => r.json())
-          .then(r => {
-            if (r.success) toast.info("Recibo enviado por e-mail", { duration: 3000 });
-          })
-          .catch(() => {}); // silencioso se falhar
+          .then(r => { if (r.success) toast.info("Recibo enviado por e-mail", { duration: 3000 }); })
+          .catch(() => {});
       }
 
       onSuccess();
