@@ -118,8 +118,10 @@ export async function POST(req: NextRequest) {
       const cor = cores[scoreVal]||[150,150,150];
       for (let s=0;s<5;s++) {
         const filled = s < scoreVal;
-        doc.setFillColor(...(filled?cor:[210,210,210]));
-        doc.setDrawColor(...(filled?cor:[180,180,180]));
+        const rgb = filled ? cor : [210,210,210] as [number,number,number];
+        const rgb2 = filled ? cor : [180,180,180] as [number,number,number];
+        doc.setFillColor(rgb[0],rgb[1],rgb[2]);
+        doc.setDrawColor(rgb2[0],rgb2[1],rgb2[2]);
         doc.rect(L+30+(s*8), y-4.5, 6, 6, filled?"F":"D");
       }
       doc.setFont("helvetica","normal"); doc.setFontSize(8.5); doc.setTextColor(30,30,30);
