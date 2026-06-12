@@ -15,8 +15,8 @@ function mesLabel(iso: string) {
 export async function GET(req: NextRequest) {
   try {
     const supabase = await createClient();
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
 
     const { searchParams } = new URL(req.url);
     const mes = searchParams.get("mes") || new Date().toISOString().slice(0, 7) + "-01";
@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
     const [inqRes, compRes, imovRes, acordosRes] = await Promise.all([
       supabase.from("inquilinos")
         .select("id, nome_completo, cpf, valor_aluguel, valor_condominio, dia_vencimento, data_inicio, score_inquilinos(score, score_label), imoveis!inner(titulo, proprietario_id)")
-        .eq("imoveis.proprietario_id", session.user.id)
+        .eq("imoveis.proprietario_id", user.id)
         .eq("status", "ativo"),
       supabase.from("comprovantes")
         .select("inquilino_id, mes_referencia, valor, valor_multa, valor_juros, situation, data_vencimento, data_pagamento, forma_pagamento")
@@ -34,11 +34,11 @@ export async function GET(req: NextRequest) {
         .lte("mes_referencia", mesInicio),
       supabase.from("imoveis")
         .select("id, titulo, status, do_center")
-        .eq("proprietario_id", session.user.id),
+        .eq("proprietario_id", user.id),
       supabase.from("acordos")
         .select("id, valor_acordo, status, inquilinos!inner(nome_completo, imoveis!inner(proprietario_id))")
         .eq("status", "ativo")
-        .eq("inquilinos.imoveis.proprietario_id", session.user.id),
+        .eq("inquilinos.imoveis.proprietario_id", user.id),
     ]);
 
     const inquilinos = inqRes.data || [];

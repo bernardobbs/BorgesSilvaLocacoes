@@ -15,8 +15,8 @@ export async function POST(req: NextRequest) {
     }
 
     const supabase = await createClient();
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
 
     // Buscar dados do inquilino
     const { data: inq } = await supabase.from("inquilinos")

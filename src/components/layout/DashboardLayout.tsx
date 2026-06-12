@@ -26,7 +26,6 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { Logo } from "@/components/ui/Logo";
-import { Paywall } from "@/components/dashboard/Paywall";
 import { CompleteProfileForm } from "@/components/dashboard/CompleteProfileForm";
 import {
   Tooltip,
@@ -143,12 +142,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     }
   };
 
-  // Verificação de Trial Expirado (Paywall)
-  const isExpired = !!(
-    profile?.subscription_status === 'trial' &&
-    profile?.expires_at &&
-    new Date(profile.expires_at) < new Date()
-  );
+  const isExpired = false; // Paywall removido — sistema familiar
 
   const isSettingsPage = pathname === "/dashboard/configuracoes";
 
@@ -363,8 +357,6 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         <div className="container px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
           {isProfileIncomplete ? (
             <CompleteProfileForm />
-          ) : isExpired && !isSettingsPage ? (
-            <Paywall />
           ) : (
             children
           )}

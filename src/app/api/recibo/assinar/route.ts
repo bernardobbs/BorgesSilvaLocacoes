@@ -10,8 +10,8 @@ export async function POST(req: NextRequest) {
     if (!comprovante_id) return NextResponse.json({ error: "comprovante_id obrigatório" }, { status: 400 });
 
     const supabase = await createClient();
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
 
     // Buscar dados do comprovante
     const { data: comp } = await supabase.from("comprovantes")
@@ -65,7 +65,7 @@ export async function POST(req: NextRequest) {
       receipt_number: receiptNumber,
       receipt_hash: hash,
       operacao: "hash_gerado",
-      usuario_id: session.user.id,
+      usuario_id: user.id,
       detalhe: `Hash gerado para comprovante ${comprovante_id}`,
     });
 
@@ -76,11 +76,11 @@ export async function POST(req: NextRequest) {
     // Registrar falha na auditoria
     try {
       const supabase = await createClient();
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { user } } = await supabase.auth.getUser();
       await supabase.from("auditoria_recibos").insert({
         comprovante_id: req.body ? (await req.json().catch(() => ({}))).comprovante_id : null,
         operacao: "falha",
-        usuario_id: session?.user?.id,
+        usuario_id: user?.id,
         detalhe: err.message,
       });
     } catch {}

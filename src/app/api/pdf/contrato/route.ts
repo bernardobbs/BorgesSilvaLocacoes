@@ -13,8 +13,8 @@ export async function POST(req: NextRequest) {
   try {
     const { inquilino_id } = await req.json();
     const supabase = await createClient();
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
 
     const { data: inq } = await supabase.from("inquilinos").select(`
       *, imoveis(titulo, tipo, endereco_rua, endereco_numero, endereco_complemento,
@@ -204,17 +204,17 @@ export async function POST(req: NextRequest) {
     // Upload
     const pdfBuffer = Buffer.from(doc.output("arraybuffer"));
     const safeName = inq.nome_completo.normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-zA-Z0-9]/g,"-").toLowerCase();
-    const fileName = `${session.user.id}/contratos/${Date.now()}-${safeName}.pdf`;
-    await supabase.storage.from("imoveis-fotos").upload(fileName, pdfBuffer, { contentType: "application/pdf" });
-    const { data: urlData } = supabase.storage.from("imoveis-fotos").getPublicUrl(fileName);
+    const fileName = `${user.id}/contratos/${Date.now()}-${safeName}.pdf`;
+    await supabase.storage.from("documentos").upload(fileName, pdfBuffer, { contentType: "application/pdf" });
+    const { data: urlData } = await supabase.storage.from("documentos").createSignedUrl(fileName, 60*60*24*7);
 
     // Salvar URL no inquilino
     await supabase.from("inquilinos").update({
-      contrato_pdf_url: urlData.publicUrl,
+      contrato_pdf_url: urlData?.signedUrl,
       contrato_gerado_em: new Date().toISOString(),
     }).eq("id", inquilino_id);
 
-    return NextResponse.json({ success: true, pdfUrl: urlData.publicUrl });
+    return NextResponse.json({ success: true, pdfUrl: urlData?.signedUrl });
   } catch (err: any) {
     console.error("Contrato error:", err);
     return NextResponse.json({ error: err.message }, { status: 500 });

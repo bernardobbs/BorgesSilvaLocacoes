@@ -276,7 +276,7 @@ export async function POST(request: NextRequest) {
         const fileName = `${userId}/${propertyId}/comprovantes/${Date.now()}-${data.tenantName.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9-_]/g,'-').replace(/-+/g,'-').toLowerCase()}.pdf`;
 
         const { error: uploadError } = await supabase.storage
-            .from('imoveis-fotos')
+            .from('documentos')
             .upload(fileName, pdfBuffer, {
                 contentType: 'application/pdf',
                 upsert: false
@@ -288,9 +288,8 @@ export async function POST(request: NextRequest) {
         }
 
         // Obter URL pública
-        const { data: { publicUrl } } = supabase.storage
-            .from('imoveis-fotos')
-            .getPublicUrl(fileName);
+        const { data: signed } = await supabase.storage.from("documentos").createSignedUrl(fileName, 60*60*24*7);
+        const publicUrl = signed?.signedUrl || "";
 
         // Retornar URL e buffer
         return NextResponse.json({

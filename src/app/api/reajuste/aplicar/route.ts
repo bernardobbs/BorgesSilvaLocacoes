@@ -6,8 +6,8 @@ export async function POST(req: NextRequest) {
   try {
     const { inquilino_id, valor_novo, percentual, indice } = await req.json();
     const supabase = await createClient();
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
 
     const { data: inq } = await supabase.from("inquilinos")
       .select("valor_aluguel, nome_completo")
@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
       inquilino_id, data_reajuste: hoje,
       valor_anterior: inq.valor_aluguel,
       valor_novo, indice, percentual,
-      aplicado_por: session.user.id,
+      aplicado_por: user.id,
     });
 
     const { error } = await supabase.from("inquilinos").update({

@@ -11,8 +11,8 @@ export async function POST(req: NextRequest) {
   try {
     const { inquilino_id } = await req.json();
     const supabase = await createClient();
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return NextResponse.json({ error: "Nao autorizado" }, { status: 401 });
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: "Nao autorizado" }, { status: 401 });
 
     const { data: inq } = await supabase.from("inquilinos")
       .select("*, imoveis(titulo, endereco_rua, endereco_numero, endereco_bairro, endereco_cidade, endereco_estado, endereco_cep)")
@@ -150,11 +150,11 @@ export async function POST(req: NextRequest) {
 
     const pdfBuffer = Buffer.from(doc.output("arraybuffer"));
     const safeName = inq.nome_completo.normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-zA-Z0-9]/g,"-");
-    const fileName = `${session.user.id}/notificacoes/correios-${Date.now()}-${safeName}.pdf`;
-    await supabase.storage.from("imoveis-fotos").upload(fileName, pdfBuffer, {contentType:"application/pdf"});
-    const { data: urlData } = supabase.storage.from("imoveis-fotos").getPublicUrl(fileName);
+    const fileName = `${user.id}/notificacoes/correios-${Date.now()}-${safeName}.pdf`;
+    await supabase.storage.from("documentos").upload(fileName, pdfBuffer, {contentType:"application/pdf"});
+    const { data: urlData } = await supabase.storage.from("documentos").createSignedUrl(fileName, 60*60*24*7);
 
-    return NextResponse.json({ success: true, pdfUrl: urlData.publicUrl });
+    return NextResponse.json({ success: true, pdfUrl: urlData?.signedUrl });
   } catch(err:any){
     console.error(err);
     return NextResponse.json({ error: err.message }, { status: 500 });

@@ -249,9 +249,10 @@ export async function POST(request: NextRequest) {
 
 
     const pdfBuffer = Buffer.from(doc.output("arraybuffer"));
-    const { error:ue } = await supabase.storage.from("imoveis-fotos").upload(fileName,pdfBuffer,{contentType:"application/pdf"});
+    const { error:ue } = await supabase.storage.from("documentos").upload(fileName,pdfBuffer,{contentType:"application/pdf"});
     if(ue) throw ue;
-    const { data:{ publicUrl } } = supabase.storage.from("imoveis-fotos").getPublicUrl(fileName);
+    const { data: signed } = await supabase.storage.from("documentos").createSignedUrl(fileName, 60*60*24*7);
+    const publicUrl = signed?.signedUrl || "";
 
     return NextResponse.json({ success:true, pdfUrl:publicUrl });
   } catch(e:any) {

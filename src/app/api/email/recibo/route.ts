@@ -29,8 +29,8 @@ export async function POST(req: NextRequest) {
     }
 
     const supabase = await createClient();
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
 
     const { data: comp } = await supabase
       .from("comprovantes")
@@ -114,7 +114,7 @@ body{font-family:Arial,sans-serif;background:#f5f5f5;margin:0;padding:20px}
         receipt_number: (comp as any).receipt_number,
         receipt_hash: (comp as any).receipt_hash,
         operacao: "email_enviado",
-        usuario_id: session.user.id,
+        usuario_id: user.id,
         detalhe: `E-mail de recibo enviado para ${inq.email}`,
       });
     } catch {}

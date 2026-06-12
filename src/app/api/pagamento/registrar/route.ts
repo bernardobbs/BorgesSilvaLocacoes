@@ -5,7 +5,8 @@ import { createClient } from "@/lib/supabase/server";
 import { createHmac } from "crypto";
 
 function gerarHash(payload: Record<string, string>): string {
-  const secret = process.env.RECEIPT_SECRET || "bsl-default-secret-2026";
+  const secret = process.env.RECEIPT_SECRET;
+  if (!secret) throw new Error("RECEIPT_SECRET não configurado — recibo não pode ser assinado.");
   const str = Object.values(payload).join("|");
   return createHmac("sha256", secret).update(str).digest("hex");
 }
@@ -18,8 +19,8 @@ function gerarReceiptNumber(mesReferencia: string, seq: number): string {
 export async function POST(req: NextRequest) {
   try {
     const supabase = await createClient();
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
 
     const body = await req.json();
     const {
@@ -107,7 +108,7 @@ export async function POST(req: NextRequest) {
       receipt_number: receiptNumber,
       receipt_hash: hash,
       operacao: "hash_gerado",
-      usuario_id: session.user.id,
+      usuario_id: user.id,
       detalhe: `Hash gerado via API server-side`,
     });
 

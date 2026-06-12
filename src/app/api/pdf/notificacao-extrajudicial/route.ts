@@ -195,14 +195,13 @@ export async function POST(request: NextRequest) {
     const fileName = `${user.id}/${imovel_id}/notificacoes/${Date.now()}-notificacao-${nome_inquilino.normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-zA-Z0-9-_]/g,"-").replace(/-+/g,"-").toLowerCase()}.pdf`;
 
     const { error: uploadError } = await supabase.storage
-      .from("imoveis-fotos")
+      .from("documentos")
       .upload(fileName, pdfBuffer, { contentType: "application/pdf", upsert: false });
 
     if (uploadError) throw uploadError;
 
-    const { data: { publicUrl } } = supabase.storage
-      .from("imoveis-fotos")
-      .getPublicUrl(fileName);
+    const { data: signed } = await supabase.storage.from("documentos").createSignedUrl(fileName, 60*60*24*7);
+        const publicUrl = signed?.signedUrl || "";
 
     return NextResponse.json({ success: true, pdfUrl: publicUrl });
   } catch (e: any) {
