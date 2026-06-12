@@ -78,45 +78,36 @@ export default function RegistrarPagamentoModal({ open, onClose, onSuccess, inqu
       setLoading(true);
       const v_multa = aplicarEncargos && atrasado ? enc.multa : 0;
       const v_juros = aplicarEncargos && atrasado ? enc.juros : 0;
+      const totalFinal = inquilino.valor_aluguel + v_multa + v_juros;
+      const venc = new Date(mesReferencia);
+      venc.setDate(inquilino.dia_vencimento);
 
-      let compId = comprovante?.id;
+      // Registrar pagamento + gerar hash via servidor
+      const regRes = await fetch("/api/pagamento/registrar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          comprovante_id: comprovante?.id || null,
+          inquilino_id: inquilino.id,
+          imovel_id: inquilino.imovel_id,
+          mes_referencia: mesReferencia,
+          valor: inquilino.valor_aluguel,
+          valor_multa: v_multa,
+          valor_juros: v_juros,
+          data_pagamento: dataPag,
+          forma_pagamento: forma,
+          descricao: obs || null,
+          data_vencimento: venc.toISOString().split("T")[0],
+        }),
+      });
 
-      if (compId) {
-        // Atualizar existente
-        const { error: updErr } = await supabase.from("comprovantes").update({
-          valor: inquilino.valor_aluguel, valor_multa: v_multa, valor_juros: v_juros,
-          situation: "billed", data_pagamento: dataPag,
-          forma_pagamento: forma, descricao: obs || null,
-        }).eq("id", compId);
-        if (updErr) throw new Error(`Erro ao atualizar: ${updErr.message}`);
-      } else {
-        // Criar novo
-        const venc = new Date(mesReferencia);
-        venc.setDate(inquilino.dia_vencimento);
-        const { data: novo, error: insErr } = await supabase.from("comprovantes").insert({
-          inquilino_id: inquilino.id, imovel_id: inquilino.imovel_id,
-          tipo: "pagamento", mes_referencia: mesReferencia,
-          valor: inquilino.valor_aluguel, valor_multa: v_multa, valor_juros: v_juros,
-          situation: "billed", data_vencimento: venc.toISOString().split("T")[0],
-          data_pagamento: dataPag, forma_pagamento: forma, descricao: obs || null,
-        }).select().single();
-        if (insErr) throw new Error(`Erro ao criar: ${insErr.message} (código: ${insErr.code})`);
-        compId = novo?.id;
-      }
-
-      // 1. Gerar hash (awaited — garante hash no PDF e email)
-      if (compId) {
-        try {
-          await fetch("/api/recibo/assinar", {
-            method: "POST", headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ comprovante_id: compId }),
-          });
-        } catch {}
-      }
+      const regJson = await regRes.json();
+      if (!regRes.ok) throw new Error(regJson.error || "Erro ao registrar pagamento");
+      const compId = regJson.comprovante_id;
 
       toast.success("Pagamento registrado!", { description: `${mesLabel(mesReferencia)} · ${fmtBRL(totalFinal)}` });
 
-      // 2. PDF e e-mail em paralelo (não-bloqueante)
+      // PDF e e-mail em paralelo (não-bloqueante)
       if (compId && user) {
         const _cId = compId;
         const _pdfBody = {
@@ -135,7 +126,6 @@ export default function RegistrarPagamentoModal({ open, onClose, onSuccess, inqu
             observations: obs || undefined,
           },
         };
-        // PDF
         fetch("/api/pdf/generate", {
           method: "POST", headers: { "Content-Type": "application/json" },
           body: JSON.stringify(_pdfBody),
@@ -145,7 +135,6 @@ export default function RegistrarPagamentoModal({ open, onClose, onSuccess, inqu
             window.open(pdf.pdfUrl, "_blank");
           }
         }).catch(() => {});
-        // E-mail
         fetch("/api/email/recibo", {
           method: "POST", headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ comprovante_id: _cId }),
