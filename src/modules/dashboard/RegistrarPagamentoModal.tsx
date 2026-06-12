@@ -104,9 +104,19 @@ export default function RegistrarPagamentoModal({ open, onClose, onSuccess, inqu
         compId = novo?.id;
       }
 
+      // 1. Gerar hash (awaited — garante hash no PDF e email)
+      if (compId) {
+        try {
+          await fetch("/api/recibo/assinar", {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ comprovante_id: compId }),
+          });
+        } catch {}
+      }
+
       toast.success("Pagamento registrado!", { description: `${mesLabel(mesReferencia)} · ${fmtBRL(totalFinal)}` });
 
-      // Sequência: 1. Hash → 2. PDF (com hash) → 3. E-mail (com hash)
+      // 2. PDF e e-mail em paralelo (não-bloqueante)
       if (compId && user) {
         const _cId = compId;
         const _pdfBody = {
@@ -125,29 +135,23 @@ export default function RegistrarPagamentoModal({ open, onClose, onSuccess, inqu
             observations: obs || undefined,
           },
         };
-        fetch("/api/recibo/assinar", {
+        // PDF
+        fetch("/api/pdf/generate", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(_pdfBody),
+        }).then(r => r.json()).then(pdf => {
+          if (pdf.success && pdf.pdfUrl) {
+            supabase.from("comprovantes").update({ pdf_url: pdf.pdfUrl }).eq("id", _cId);
+            window.open(pdf.pdfUrl, "_blank");
+          }
+        }).catch(() => {});
+        // E-mail
+        fetch("/api/email/recibo", {
           method: "POST", headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ comprovante_id: _cId }),
-        })
-          .then(r => r.json())
-          .then(() => fetch("/api/pdf/generate", {
-            method: "POST", headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(_pdfBody),
-          }))
-          .then(r => r.json())
-          .then(pdf => {
-            if (pdf.success && pdf.pdfUrl) {
-              supabase.from("comprovantes").update({ pdf_url: pdf.pdfUrl }).eq("id", _cId);
-              window.open(pdf.pdfUrl, "_blank");
-            }
-            return fetch("/api/email/recibo", {
-              method: "POST", headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ comprovante_id: _cId }),
-            });
-          })
-          .then(r => r.json())
-          .then(r => { if (r.success) toast.info("Recibo enviado por e-mail", { duration: 3000 }); })
-          .catch(() => {});
+        }).then(r => r.json()).then(r => {
+          if (r.success) toast.info("Recibo enviado por e-mail", { duration: 3000 });
+        }).catch(() => {});
       }
 
       onSuccess();
