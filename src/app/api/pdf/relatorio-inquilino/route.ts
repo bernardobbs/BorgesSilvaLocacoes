@@ -107,8 +107,24 @@ export async function POST(req: NextRequest) {
     // ── SCORE ──
     if (score) {
       secao("Score de pontualidade");
-      const estrelas = "★".repeat(score.score||0)+"☆".repeat(5-(score.score||0));
-      campo("Score:", `${estrelas}  ${score.score_label||""} (${score.pontos}/100 pts)`);
+      // Desenhar estrelas como retângulos coloridos
+      checkPage(8);
+      doc.setFont("helvetica","bold"); doc.setFontSize(8.5); doc.setTextColor(100,100,100);
+      doc.text("Score:", L, y);
+      const scoreVal = score.score||0;
+      const cores:Record<number,[number,number,number]> = {
+        1:[180,30,30], 2:[200,100,20], 3:[180,150,20], 4:[80,150,40], 5:[30,130,30]
+      };
+      const cor = cores[scoreVal]||[150,150,150];
+      for (let s=0;s<5;s++) {
+        const filled = s < scoreVal;
+        doc.setFillColor(...(filled?cor:[210,210,210]));
+        doc.setDrawColor(...(filled?cor:[180,180,180]));
+        doc.rect(L+30+(s*8), y-4.5, 6, 6, filled?"F":"D");
+      }
+      doc.setFont("helvetica","normal"); doc.setFontSize(8.5); doc.setTextColor(30,30,30);
+      doc.text(`${score.score_label||""}  (${score.pontos}/100 pts)`, L+73, y);
+      y+=5.5;
       campo("Meses no histórico:", String(score.total_meses||0));
       campo("Pagos em dia:", String(score.pagos_em_dia||0));
       campo("Vencidos:", String(score.vencidos||0));
