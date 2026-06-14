@@ -47,6 +47,7 @@ interface PropertyFormData {
   // Informações do imóvel
   title: string;
   type: string;
+  category: string;
   rooms: string[];
   maxPeople: string;
   acceptsPets: boolean;
@@ -79,6 +80,7 @@ const initialFormData: PropertyFormData = {
   state: "",
   title: "",
   type: "apartamento",
+  category: "comercial",
   rooms: [],
   maxPeople: "",
   acceptsPets: false,
@@ -166,6 +168,7 @@ export default function PropertyForm() {
         state: data.endereco_estado || "",
         title: data.titulo || "",
         type: data.tipo || "apartamento",
+        category: data.categoria || "comercial",
         rooms: data.comodos || [],
         maxPeople: data.max_pessoas?.toString() || "",
         acceptsPets: data.aceita_pets || false,
@@ -267,6 +270,7 @@ export default function PropertyForm() {
             endereco_estado: formData.state,
             titulo: formData.title,
             tipo: formData.type as any,
+          categoria: formData.category,
             comodos: formData.rooms || [],
             max_pessoas: formData.maxPeople ? parseInt(formData.maxPeople) : null,
             aceita_pets: formData.acceptsPets,
@@ -350,6 +354,7 @@ export default function PropertyForm() {
           endereco_estado: formData.state,
           titulo: formData.title,
           tipo: formData.type as any,
+          categoria: formData.category,
           comodos: formData.rooms,
           max_pessoas: formData.maxPeople ? parseInt(formData.maxPeople) : null,
           aceita_pets: formData.acceptsPets,

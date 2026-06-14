@@ -29,6 +29,7 @@ interface PropertyBasicInfoFieldsProps {
   formData: {
     title: string;
     type: string;
+    category: string;
     rooms: string[];
     maxPeople: string;
     acceptsPets: boolean;
@@ -93,6 +94,21 @@ export function PropertyBasicInfoFields({ formData, onChange }: PropertyBasicInf
                     {type.label}
                   </SelectItem>
                 ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="category">Categoria <span className="text-xs text-muted-foreground">(define cláusulas do contrato)</span></Label>
+            <Select
+              value={formData.category}
+              onValueChange={(value) => onChange("category", value)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Residencial ou Comercial" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="residencial">Residencial — moradia (Lei 8.245 arts. 46-50)</SelectItem>
+                <SelectItem value="comercial">Comercial / Não Residencial — atividade econômica (arts. 51-57)</SelectItem>
               </SelectContent>
             </Select>
           </div>

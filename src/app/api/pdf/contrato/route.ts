@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
     if (!user) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
 
     const { data: inq } = await supabase.from("inquilinos").select(`
-      *, imoveis(titulo, tipo, endereco_rua, endereco_numero, endereco_complemento,
+      *, imoveis(titulo, tipo, categoria, endereco_rua, endereco_numero, endereco_complemento,
         endereco_bairro, endereco_cidade, endereco_estado, endereco_cep,
         locador_nome, locador_cpf_cnpj, locador_telefone, do_center, numero_unidade)
     `).eq("id", inquilino_id).single();
@@ -81,7 +81,8 @@ export async function POST(req: NextRequest) {
     doc.setFont("helvetica","bold"); doc.setFontSize(14); doc.setTextColor(30,30,80);
     doc.text("CONTRATO DE LOCAÇÃO DE IMÓVEL", 105, y, {align:"center"}); y += 7;
     doc.setFont("helvetica","normal"); doc.setFontSize(9); doc.setTextColor(100);
-    const tipoContrato = im?.tipo === "residencial" ? "RESIDENCIAL" : "COMERCIAL/NÃO RESIDENCIAL";
+    const isResidencial = im?.categoria === "residencial";
+    const tipoContrato = isResidencial ? "RESIDENCIAL" : "COMERCIAL / NÃO RESIDENCIAL";
     doc.text(`${tipoContrato} — Lei nº 8.245, de 18 de outubro de 1991`, 105, y, {align:"center"}); y += 5;
     doc.setFillColor(30,30,80); doc.rect(L, y, W, 0.5, "F"); y += 6;
 
@@ -95,13 +96,18 @@ export async function POST(req: NextRequest) {
 
     // ── OBJETO ──
     titulo("CLÁUSULA 2ª — DO OBJETO");
-    par(`O(A) LOCADOR(A) cede em locação ao(à) LOCATÁRIO(A) o imóvel ${im?.tipo || ""}${im?.do_center ? ` denominado "${im.titulo}"` : ` situado à ${imovelEnd}`}, ${imovelCid}, conforme descrição e características constantes da matrícula do imóvel.`); y += 4;
+    par(`O(A) LOCADOR(A) cede em locação ao(à) LOCATÁRIO(A) o imóvel ${im?.tipo || ""}${im?.do_center ? ` denominado "${im.titulo}"` : ` situado à ${imovelEnd}`}, ${imovelCid}, conforme descrição e características constantes da matrícula do imóvel, destinando-se ${isResidencial ? "EXCLUSIVAMENTE para fins residenciais, vedada a utilização para fins comerciais ou industriais" : "EXCLUSIVAMENTE para fins COMERCIAIS / NÃO RESIDENCIAIS, vedada a utilização para fins residenciais"}. § Único — O desvio de finalidade configurará infração contratual grave, ensejando rescisão imediata.`); y += 4;
 
     // ── PRAZO ──
     titulo("CLÁUSULA 3ª — DO PRAZO");
     const dataInicio = inq.data_inicio || hoje.toISOString().split("T")[0];
     const dataFim = inq.data_fim;
-    par(`A locação tem prazo ${dataFim ? `determinado de ${fmtD(dataInicio)} a ${fmtD(dataFim)}` : `indeterminado, com início em ${fmtD(dataInicio)}`}, podendo ser rescindido por qualquer das partes mediante aviso prévio de 30 (trinta) dias, nos termos do art. 46 e seguintes da Lei nº 8.245/91.`); y += 4;
+    par(`A locação tem prazo ${dataFim ? `determinado de ${fmtD(dataInicio)} a ${fmtD(dataFim)}` : `indeterminado, com início em ${fmtD(dataInicio)}`}, podendo ser rescindido por qualquer das partes mediante aviso prévio de 30 (trinta) dias.`); y += 2;
+    if (isResidencial) {
+      par(`§ Único — Nas locações residenciais, observam-se as disposições dos arts. 46 a 50 da Lei nº 8.245/91. Findo o prazo determinado, presumir-se-á prorrogada por tempo indeterminado, podendo o(a) LOCADOR(A) denunciar o contrato a qualquer tempo mediante aviso prévio de 30 (trinta) dias.`); y += 4;
+    } else {
+      par(`§ Único — Tratando-se de locação não residencial, observam-se as disposições dos arts. 51 a 57 da Lei nº 8.245/91. O(A) LOCATÁRIO(A) poderá pleitear renovação compulsória nos termos do art. 51, observados os requisitos legais (contrato escrito, prazo determinado mínimo de 5 anos e exploração do mesmo ramo por pelo menos 3 anos).`); y += 4;
+    }
 
     // ── VALOR ──
     titulo("CLÁUSULA 4ª — DO ALUGUEL E CONDIÇÕES DE PAGAMENTO");
@@ -148,7 +154,7 @@ export async function POST(req: NextRequest) {
 
     // ── RESCISÃO ──
     titulo("CLÁUSULA 8ª — DA RESCISÃO");
-    par(`O descumprimento de qualquer cláusula deste contrato ensejará sua rescisão, podendo o(a) LOCADOR(A) ajuizar ação de despejo por infração contratual e/ou cobrança dos valores devidos, conforme arts. 9º e 62 da Lei nº 8.245/91.`); y += 2;
+    par(`O descumprimento de qualquer cláusula deste contrato ensejará sua rescisão, podendo o(a) LOCADOR(A) ajuizar ação de despejo por infração contratual e/ou cobrança dos valores devidos, conforme arts. 9º e 62 da Lei nº 8.245/91${isResidencial ? "" : ", inclusive em sede de despejo sumário previsto para locações não residenciais"}.`); y += 2;
     par(`A rescisão antecipada pelo(a) LOCATÁRIO(A), antes do término do prazo contratual, sujeitará ao pagamento de multa compensatória de ${inq.multa_percentual || 10}% (${extenso(inq.multa_percentual || 10)} por cento) sobre o valor do aluguel restante, calculada proporcionalmente ao período faltante.`); y += 4;
 
     // ── DISPOSIÇÕES GERAIS ──
