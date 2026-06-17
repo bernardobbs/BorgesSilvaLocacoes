@@ -1,5 +1,6 @@
 // Based on Lugo — Copyright (c) 2024 Renilson Medeiros — MIT License
 "use client";
+import Link from "next/link";
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -146,7 +147,7 @@ export default function NotificacoesCobranca({ notificacoes, compact = false }: 
                       </span>
                       <span className={`text-xs ${cor.text}`}>D+{n.dias_atraso}</span>
                     </div>
-                    <p className={`text-sm font-medium mt-1 ${cor.text}`}>{n.nome_completo}</p>
+                    <Link href={`/dashboard/inquilinos/${n.inquilino_id}`} className={`text-sm font-medium mt-1 ${cor.text} hover:underline`}>{n.nome_completo}</Link>
                     <p className="text-xs text-muted-foreground">{n.imovel_titulo} · {mesLabel(n.mes_referencia)}</p>
                     <p className={`text-xs font-semibold mt-0.5 ${cor.text}`}>{fmtBRL(n.valor_total)} c/ encargos</p>
                   </div>
