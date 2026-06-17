@@ -275,7 +275,7 @@ export default function TenantDetailsClient({ tenant, historicoPag, historicoNot
         <ReajusteModal
           open={reajusteOpen}
           onClose={() => setReajusteOpen(false)}
-          onSuccess={() => { setReajusteOpen(false); }}
+          onSuccess={() => { setReajusteOpen(false); router.refresh(); }}
           inquilinoId={tenant.id}
           nomeInquilino={tenant.nome_completo}
           valorAtual={tenant.valor_aluguel || 0}

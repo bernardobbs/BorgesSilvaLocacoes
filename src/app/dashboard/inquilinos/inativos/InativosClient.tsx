@@ -71,7 +71,9 @@ export default function InativosClient({ inativos, comprovantesMap, notificacoes
   async function marcarEnviadoAdvogado(id: string, obs: string) {
     setMarcandoAdv(id);
     try {
-      const { error } = await (await import("@/lib/supabase")).supabase
+      const { createClient } = await import("@/lib/supabase/client");
+      const supabase = createClient();
+      const { error } = await supabase
         .from("inquilinos")
         .update({
           enviado_advogado_em: new Date().toISOString(),

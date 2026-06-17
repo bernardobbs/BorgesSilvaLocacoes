@@ -33,7 +33,7 @@ export default async function TenantsListPage() {
             )
         `)
         .eq('imoveis.proprietario_id', session.user.id)
-        .order('created_at', { ascending: false })
+        .order('nome_completo', { ascending: true })
         .limit(50);
 
     if (fetchError) {
@@ -51,7 +51,7 @@ export default async function TenantsListPage() {
     // Buscar scores
     const { data: scores } = await supabase
         .from('score_inquilinos')
-        .select('inquilino_id, score, total_parcelas, pagas, vencidas, media_dias_atraso, pct_pontualidade');
+        .select('inquilino_id, score, score_label, pontos, total_meses, pagos_em_dia, vencidos, total_notificacoes, total_acordos');
 
     const scoresMap = Object.fromEntries(
         (scores || []).map((s: any) => [s.inquilino_id, s])

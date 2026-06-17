@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
     const imovelEnd   = im ? `${im.endereco_rua||""}, ${im.endereco_numero||""}${im.endereco_complemento?`, ${im.endereco_complemento}`:""}${im.endereco_bairro?`, ${im.endereco_bairro}`:""}` : "";
     const imovelCid   = im ? `${im.endereco_cidade||"Parnaíba"} – ${im.endereco_estado||"PI"}${im.endereco_cep?`, CEP ${im.endereco_cep}`:""}` : "";
     const valorMensal = (inq.valor_aluguel || 0) + (inq.valor_condominio || 0);
-    const valorExtenso = `${fmtBRL(valorMensal)} (${extenso(Math.floor(valorMensal))} reais${valorMensal % 1 > 0 ? ` e ${Math.round((valorMensal%1)*100)} centavos` : ""})`;
+    const valorExtenso = `${extenso(Math.floor(valorMensal)) || valorMensal.toFixed(0)} reais${valorMensal % 1 > 0 ? ` e ${extenso(Math.round((valorMensal%1)*100)) || Math.round((valorMensal%1)*100)} centavos` : ""}`;
 
     const doc = new jsPDF({ unit: "mm", format: "a4" });
     const L = 20, R = 190, W = R - L;

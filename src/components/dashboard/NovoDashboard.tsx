@@ -381,7 +381,7 @@ export default function NovoDashboard({ inquilinos, compMes, imoveis, acordos, n
         <ReajusteModal
           open={!!reajusteModal}
           onClose={() => setReajusteModal(null)}
-          onSuccess={() => setReajusteModal(null)}
+          onSuccess={() => { setReajusteModal(null); router.refresh(); }}
           inquilinoId={reajusteModal.id}
           nomeInquilino={reajusteModal.nome}
           valorAtual={reajusteModal.valor}
