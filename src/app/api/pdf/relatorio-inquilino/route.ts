@@ -52,10 +52,10 @@ export async function POST(req: NextRequest) {
     const im = Array.isArray(inq.imoveis)?inq.imoveis[0]:inq.imoveis as any;
 
     const doc = new jsPDF({ unit:"mm", format:"a4" });
-    const L=15, R=195, W=R-L;
+    const L = 20, R = 190, W = R - L;
     let y=15;
 
-    const checkPage = (need=10) => { if(y+need>280){doc.addPage();y=15;} };
+    const checkPage = (need=10) => { if (y + need > 268){doc.addPage();y=15;} };
     const linha = (cor=[220,220,220]) => { doc.setDrawColor(...cor as [number,number,number]); doc.line(L,y,R,y); y+=1; };
     const secao = (titulo:string) => {
       checkPage(12);
@@ -118,12 +118,18 @@ export async function POST(req: NextRequest) {
       const cor = cores[scoreVal]||[150,150,150];
       for (let s=0;s<5;s++) {
         const filled = s < scoreVal;
-        const rgb = filled ? cor : [210,210,210] as [number,number,number];
-        const rgb2 = filled ? cor : [180,180,180] as [number,number,number];
+        // Usar sempre "F" (filled) — quadradinhos cheios na cor do score ou cinza claro
+        const rgb: [number,number,number] = filled ? cor : [225,225,230];
         doc.setFillColor(rgb[0],rgb[1],rgb[2]);
-        doc.setDrawColor(rgb2[0],rgb2[1],rgb2[2]);
-        doc.rect(L+30+(s*8), y-4.5, 6, 6, filled?"F":"D");
+        doc.rect(L+30+(s*7.5), y-4.5, 6, 6, "F");
+        // Borda escura nos vazios para contraste
+        if (!filled) {
+          doc.setDrawColor(160,160,170);
+          doc.setLineWidth(0.2);
+          doc.rect(L+30+(s*7.5), y-4.5, 6, 6, "D");
+        }
       }
+      doc.setLineWidth(0.2);
       doc.setFont("helvetica","normal"); doc.setFontSize(8.5); doc.setTextColor(30,30,30);
       doc.text(`${score.score_label||""}  (${score.pontos}/100 pts)`, L+73, y);
       y+=5.5;

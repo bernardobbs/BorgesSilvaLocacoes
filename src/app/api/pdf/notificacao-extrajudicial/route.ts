@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
 
     const hoje = new Date();
     const doc = new jsPDF();
-    const L = 20; const R = 190; const W = R - L;
+    const L = 20, R = 190, W = R - L;
     let y = 20;
 
     const linha = (yPos: number) => {

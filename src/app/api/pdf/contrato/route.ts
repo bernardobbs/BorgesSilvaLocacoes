@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
     let y = 0;
 
     const checkPage = (need = 12) => {
-      if (y + need > 275) { doc.addPage(); y = 20; }
+      if (y + need > 268) { doc.addPage(); y = 20; }
     };
 
     const linha = () => { doc.setDrawColor(200); doc.line(L, y, R, y); y += 2; };

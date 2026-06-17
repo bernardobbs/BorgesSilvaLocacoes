@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
 
     const hoje = new Date();
     const doc = new jsPDF();
-    const L=20, R=190, W=R-L;
+    const L = 20, R = 190, W = R - L;
     let y=20;
 
     const linha = (cor=[200,200,200]) => { doc.setDrawColor(...cor as [number,number,number]); doc.line(L,y,R,y); };
@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
       const lines = doc.splitTextToSize(valor||"—", w);
       doc.text(lines,xV,y); y+=lines.length*5.5;
     };
-    const checkPage = () => { if(y>265){ doc.addPage(); y=20; } };
+    const checkPage = () => { if (y > 268) { doc.addPage(); y=20; } };
 
     // ── CAPA ────────────────────────────────────────
     doc.setFillColor(11,107,114);

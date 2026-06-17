@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
 
     const hoje = new Date();
     const doc = new jsPDF();
-    const L = 20; const R = 190; const W = R - L;
+    const L = 20, R = 190, W = R - L;
     let y = 20;
 
     // ── CABEÇALHO ──────────────────────────────────────
@@ -119,7 +119,7 @@ export async function POST(request: NextRequest) {
       doc.text(pago ? "PAGO" : "DEVENDO", 175, y);
       y += 5.5;
 
-      if (y > 265) { doc.addPage(); y = 20; }
+      if (y > 268) { doc.addPage(); y = 20; }
     });
 
     y += 4; linha(); y += 8;

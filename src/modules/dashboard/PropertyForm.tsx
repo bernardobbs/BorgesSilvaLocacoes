@@ -341,7 +341,7 @@ export default function PropertyForm() {
         setProgressValue(95);
 
         const allPhotos = [...existingPhotos, ...uploadedPhotosUrls];
-        if (allPhotos.length < 3) throw new Error('MIN_PHOTOS_REQUIRED');
+        // Fotos opcionais (sistema familiar, muitos imóveis comerciais não têm fotos)
 
         const finalPropertyData = {
           proprietario_id: currentUser.id,
@@ -499,7 +499,7 @@ export default function PropertyForm() {
           <Card>
             <CardHeader>
               <CardTitle className="text-lg">Fotos do Imóvel</CardTitle>
-              <CardDescription>Carregue pelo menos 3 fotos</CardDescription>
+              <CardDescription>Fotos do imóvel (opcional)</CardDescription>
             </CardHeader>
             <CardContent>
               <PropertyPhotoManager
