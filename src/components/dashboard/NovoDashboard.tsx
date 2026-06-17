@@ -1,6 +1,7 @@
 // Based on Lugo — Copyright (c) 2024 Renilson Medeiros — MIT License
 "use client";
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import NotificacoesCobranca from "@/components/dashboard/NotificacoesCobranca";
 import ReajusteModal from "@/components/dashboard/ReajusteModal";
 import Link from "next/link";
@@ -24,6 +25,7 @@ interface Props {
 }
 
 export default function NovoDashboard({ inquilinos, compMes, imoveis, acordos, notificacoes }: Props) {
+  const router = useRouter();
   const [reajusteModal, setReajusteModal] = useState<{id:string;nome:string;valor:number;indice:string}|null>(null);
   const hoje = new Date();
 
