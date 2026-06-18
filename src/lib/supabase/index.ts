@@ -13,10 +13,8 @@ if (!supabaseUrl || !supabaseAnonKey) {
 // Cliente singleton para uso no browser (Client Components)
 export const supabase = createClient();
 
-// Re-exporta os factories
+// Re-exporta factory do browser (seguro client + server)
 export { createClient as createBrowserClient } from './client';
-export { createClient as createServerClient } from './server';
-export { updateSession } from './middleware';
 
 // TIPOS DO BANCO DE DADOS
 export interface Profile {
