@@ -86,6 +86,7 @@ export default function TenantForm() {
   const { user } = useAuth();
 
   useEffect(() => {
+    console.log("[TenantForm] useEffect — isEditMode:", isEditMode, "isRegistrationMode:", isRegistrationMode, "id:", id);
     if (isEditMode && id) loadTenantData(id);
     else if (isRegistrationMode && id) loadPropertyDetails(id);
   }, [id, isEditMode, isRegistrationMode]);
@@ -160,8 +161,10 @@ export default function TenantForm() {
   };
 
   const loadPropertyDetails = async (pid: string) => {
+    console.log("[TenantForm] loadPropertyDetails start, pid:", pid);
     try {
       setIsLoading(true);
+      console.log("[TenantForm] querying imoveis...");
       const { data, error } = await supabase
         .from("imoveis").select("id, titulo, endereco_rua, endereco_numero, valor_aluguel")
         .eq("id", pid).single();
@@ -170,7 +173,10 @@ export default function TenantForm() {
         setProperty(data);
         setFormData(p => ({ ...p, rentValue: data.valor_aluguel.toLocaleString("pt-BR", { minimumFractionDigits: 2 }) }));
       }
-    } catch { toast.error("Erro ao carregar imóvel"); }
+    } catch (e: any) {
+      console.error("[TenantForm] erro:", e?.message, e);
+      toast.error("Erro ao carregar: " + (e?.message || "desconhecido"));
+    }
     finally { setIsLoading(false); }
   };
 

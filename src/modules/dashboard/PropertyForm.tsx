@@ -113,14 +113,13 @@ export default function PropertyForm() {
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'optimizing' | 'preparing' | 'storing' | 'finalizing' | 'error'>('idle');
   const [progressValue, setProgressValue] = useState(0);
 
-  // Carregar dados se estiver editando ou verificar trava de trial se for novo
+  // Carregar dados se estiver editando
   useEffect(() => {
-    if (isEditing) {
+    console.log("[PropertyForm] useEffect — isEditing:", isEditing, "id:", id);
+    if (isEditing && id) {
       loadProperty();
-    } else if (user) {
-      checkTrialLimit();
     }
-  }, [id, user]);
+  }, [id, isEditing]);
 
   const checkTrialLimit = async () => {
     if (!user) return;
@@ -148,8 +147,10 @@ export default function PropertyForm() {
   };
 
   const loadProperty = async () => {
+    console.log("[PropertyForm] loadProperty start, id:", id);
     try {
       setIsLoading(true);
+      console.log("[PropertyForm] querying supabase...");
       const { data, error } = await supabase
         .from('imoveis')
         .select('*')
@@ -157,6 +158,7 @@ export default function PropertyForm() {
         .single();
 
       if (error) throw error;
+      console.log("[PropertyForm] data received:", data?.titulo);
 
       setFormData({
         cep: data.endereco_cep || "",
@@ -188,9 +190,9 @@ export default function PropertyForm() {
       if (data.fotos && data.fotos.length > 0) {
         setExistingPhotos(data.fotos);
       }
-    } catch (error) {
-      console.error('Erro ao carregar imóvel:', error);
-      toast.error('Erro ao carregar dados do imóvel');
+    } catch (error: any) {
+      console.error('[PropertyForm] Erro ao carregar imóvel:', error?.message, error);
+      toast.error('Erro ao carregar: ' + (error?.message || 'erro desconhecido'));
       router.push('/dashboard/imoveis');
     } finally {
       setIsLoading(false);
