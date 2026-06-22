@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import * as XLSX from "xlsx";
+import { FAMILY_OWNER_ID } from '@/lib/family';
 
 function fmtBRL(v: number) { return (v || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" }); }
 function fmtD(iso: string | null) { if (!iso) return "—"; const [y, m, d] = iso.split("-"); return `${d}/${m}/${y}`; }
@@ -26,7 +27,7 @@ export async function GET(req: NextRequest) {
     const [inqRes, compRes, imovRes, acordosRes] = await Promise.all([
       supabase.from("inquilinos")
         .select("id, nome_completo, cpf, valor_aluguel, valor_condominio, dia_vencimento, data_inicio, score_inquilinos(score, score_label), imoveis!inner(titulo, proprietario_id)")
-        .eq("imoveis.proprietario_id", user.id)
+        .eq('imoveis.proprietario_id', FAMILY_OWNER_ID)
         .eq("status", "ativo"),
       supabase.from("comprovantes")
         .select("inquilino_id, mes_referencia, valor, valor_multa, valor_juros, situation, data_vencimento, data_pagamento, forma_pagamento")
@@ -34,11 +35,11 @@ export async function GET(req: NextRequest) {
         .lte("mes_referencia", mesInicio),
       supabase.from("imoveis")
         .select("id, titulo, status, do_center")
-        .eq("proprietario_id", user.id),
+        .eq('proprietario_id', FAMILY_OWNER_ID),
       supabase.from("acordos")
         .select("id, valor_acordo, status, inquilinos!inner(nome_completo, imoveis!inner(proprietario_id))")
         .eq("status", "ativo")
-        .eq("inquilinos.imoveis.proprietario_id", user.id),
+        .eq('inquilinos.imoveis.proprietario_id', FAMILY_OWNER_ID),
     ]);
 
     const inquilinos = inqRes.data || [];

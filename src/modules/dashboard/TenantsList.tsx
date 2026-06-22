@@ -40,6 +40,7 @@ import { FilterBar } from "@/components/dashboard/FilterBar";
 import { EmptyState } from "@/components/dashboard/EmptyState";
 import { PageLoader } from "@/components/dashboard/PageLoader";
 import { useFormFormatting } from "@/lib/hooks/useFormFormatting";
+import { FAMILY_OWNER_ID } from '@/lib/family';
 
 interface Tenant {
   id: string;
@@ -102,7 +103,7 @@ export default function TenantsList({ initialData = [], initialLoading = true, s
             proprietario_id
           )
         `)
-        .eq('imoveis.proprietario_id', user.id)
+        .eq('imoveis.proprietario_id', FAMILY_OWNER_ID)
         .order('created_at', { ascending: false })
         .limit(50);
 

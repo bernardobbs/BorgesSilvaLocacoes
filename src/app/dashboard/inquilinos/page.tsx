@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import TenantsList from "@/modules/dashboard/TenantsList";
 import { redirect } from "next/navigation";
+import { FAMILY_OWNER_ID } from '@/lib/family';
 
 export default async function TenantsListPage() {
     const supabase = await createClient();
@@ -32,7 +33,7 @@ export default async function TenantsListPage() {
                 proprietario_id
             )
         `)
-        .eq('imoveis.proprietario_id', session.user.id)
+        .eq('imoveis.proprietario_id', FAMILY_OWNER_ID)
         .order('nome_completo', { ascending: true })
         .limit(50);
 

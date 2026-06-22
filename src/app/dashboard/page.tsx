@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import DashboardClientShell from "./DashboardClientShell";
 import NovoDashboard from "@/components/dashboard/NovoDashboard";
+import { FAMILY_OWNER_ID } from '@/lib/family';
 import {
   NotificacoesSection,
   DividasExInquilinosSection,
@@ -28,31 +29,31 @@ export default async function DashboardPage() {
     // Inquilinos ativos com imóvel
     supabase.from("inquilinos")
       .select("id, nome_completo, telefone, valor_aluguel, dia_vencimento, multa_percentual, juros_percentual, imovel_id, data_inicio, data_ultimo_reajuste, indice_reajuste, imoveis!inner(id, titulo, do_center, proprietario_id)")
-      .eq("imoveis.proprietario_id", user.id)
+      .eq('imoveis.proprietario_id', FAMILY_OWNER_ID)
       .eq("status", "ativo"),
 
     // Comprovantes do mês atual
     supabase.from("comprovantes")
       .select("id, inquilino_id, valor, valor_multa, valor_juros, situation, data_vencimento, data_pagamento")
-      .eq("imoveis.proprietario_id", user.id)
+      .eq('imoveis.proprietario_id', FAMILY_OWNER_ID)
       .gte("mes_referencia", mesInicio)
       .select("id, inquilino_id, valor, valor_multa, valor_juros, situation, data_vencimento, data_pagamento, imoveis!inner(proprietario_id)"),
 
     // Imóveis (ocupação)
     supabase.from("imoveis")
       .select("id, titulo, status, do_center, numero_unidade, endereco_rua, endereco_numero")
-      .eq("proprietario_id", user.id),
+      .eq('proprietario_id', FAMILY_OWNER_ID),
 
     // Acordos ativos
     supabase.from("acordos")
       .select("id, valor_acordo, num_parcelas, status, inquilinos!inner(id, nome_completo, imoveis!inner(titulo, proprietario_id)), parcelas_acordo(id, numero, valor, data_vencimento, situation)")
       .eq("status", "ativo")
-      .eq("inquilinos.imoveis.proprietario_id", user.id),
+      .eq('inquilinos.imoveis.proprietario_id', FAMILY_OWNER_ID),
 
     // Notificações pendentes
     supabase.from("notificacoes_pendentes")
       .select("*")
-      .eq("proprietario_id", user.id),
+      .eq('proprietario_id', FAMILY_OWNER_ID),
   ]);
 
   return (

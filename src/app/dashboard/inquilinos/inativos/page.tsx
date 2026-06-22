@@ -2,6 +2,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import InativosClient from "./InativosClient";
+import { FAMILY_OWNER_ID } from '@/lib/family';
 
 export default async function InativosPage() {
   const supabase = await createClient();
@@ -21,7 +22,7 @@ export default async function InativosPage() {
         endereco_cidade, endereco_estado, proprietario_id
       )
     `)
-    .eq("imoveis.proprietario_id", session.user.id)
+    .eq('imoveis.proprietario_id', FAMILY_OWNER_ID)
     .eq("status", "inativo")
     .order("data_desocupacao", { ascending: false });
 

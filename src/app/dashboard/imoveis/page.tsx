@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import PropertiesList from "@/modules/dashboard/PropertiesList";
 import { redirect } from "next/navigation";
+import { FAMILY_OWNER_ID } from '@/lib/family';
 
 export default async function PropertiesListPage() {
     const supabase = await createClient();
@@ -27,7 +28,7 @@ export default async function PropertiesListPage() {
             created_at,
             inquilinos(nome_completo, status)
         `)
-        .eq('proprietario_id', session.user.id)
+        .eq('proprietario_id', FAMILY_OWNER_ID)
         .order('created_at', { ascending: false })
         .limit(50);
 

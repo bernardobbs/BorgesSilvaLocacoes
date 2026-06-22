@@ -2,6 +2,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import AcordosList from "@/modules/dashboard/AcordosList";
+import { FAMILY_OWNER_ID } from '@/lib/family';
 
 export default async function AcordosPage() {
   const supabase = await createClient();
@@ -18,7 +19,7 @@ export default async function AcordosPage() {
       ),
       parcelas_acordo (id, numero, valor, data_vencimento, situation, data_pagamento, forma_pagamento)
     `)
-    .eq("inquilinos.imoveis.proprietario_id", session.user.id)
+    .eq('inquilinos.imoveis.proprietario_id', FAMILY_OWNER_ID)
     .order("created_at", { ascending: false });
 
   return <AcordosList acordos={(acordos || []) as any} />;

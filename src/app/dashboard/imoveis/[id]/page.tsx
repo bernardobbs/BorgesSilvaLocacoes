@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Edit2, Building2, MapPin, Users, DollarSign, User } from "lucide-react";
+import { FAMILY_OWNER_ID } from '@/lib/family';
 
 function fmtBRL(v: number) { return (v||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"}); }
 function fmtData(iso: string|null) { if(!iso)return"—"; const[y,m,d]=iso.split("-"); return`${d}/${m}/${y}`; }
@@ -30,7 +31,7 @@ export default async function ImovelDetailPage({ params }: { params: Promise<{ i
     .from("imoveis")
     .select("*")
     .eq("id", id)
-    .eq("proprietario_id", session.user.id)
+    .eq('proprietario_id', FAMILY_OWNER_ID)
     .maybeSingle();
 
   if (!imovel) {

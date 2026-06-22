@@ -2,6 +2,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import PagamentosList from "@/modules/dashboard/PagamentosList";
+import { FAMILY_OWNER_ID } from '@/lib/family';
 
 export default async function PagamentosPage() {
   const supabase = await createClient();
@@ -19,7 +20,7 @@ export default async function PagamentosPage() {
         id, titulo, endereco_rua, endereco_numero, proprietario_id
       )
     `)
-    .eq("imoveis.proprietario_id", session.user.id)
+    .eq('imoveis.proprietario_id', FAMILY_OWNER_ID)
     .eq("status", "ativo")
     .order("nome_completo");
 
@@ -35,7 +36,7 @@ export default async function PagamentosPage() {
       forma_pagamento, pdf_url, descricao, created_at,
       imoveis!inner (proprietario_id)
     `)
-    .eq("imoveis.proprietario_id", session.user.id)
+    .eq('imoveis.proprietario_id', FAMILY_OWNER_ID)
     .gte("mes_referencia", sixMonthsAgo.toISOString().split("T")[0])
     .order("mes_referencia", { ascending: false });
 
@@ -43,7 +44,7 @@ export default async function PagamentosPage() {
   const { data: notificacoes } = await supabase
     .from("notificacoes_pendentes")
     .select("*")
-    .eq("proprietario_id", session.user.id);
+    .eq('proprietario_id', FAMILY_OWNER_ID);
 
   const notifs = (notificacoes || []).map((n: any) => ({
     ...n,
@@ -67,7 +68,7 @@ export default async function PagamentosPage() {
       )
     `)
     .eq("status", "ativo")
-    .eq("inquilinos.imoveis.proprietario_id", session.user.id);
+    .eq('inquilinos.imoveis.proprietario_id', FAMILY_OWNER_ID);
 
   // IDs dos inquilinos com acordo ativo — para marcar na lista principal
   const inquilinosComAcordo = new Set(

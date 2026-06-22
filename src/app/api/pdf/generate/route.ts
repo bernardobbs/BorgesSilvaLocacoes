@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import jsPDF from 'jspdf';
+import { FAMILY_OWNER_ID } from '@/lib/family';
 
 export const dynamic = 'force-dynamic';
 
@@ -89,7 +90,7 @@ export async function POST(request: NextRequest) {
             .from('imoveis')
             .select('id')
             .eq('id', propertyId)
-            .eq('proprietario_id', user.id)
+            .eq('proprietario_id', FAMILY_OWNER_ID)
             .single();
 
         if (dbError || !imovelCheck) {

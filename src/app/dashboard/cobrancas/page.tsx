@@ -2,6 +2,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import CobrancasClient from "./CobrancasClient";
+import { FAMILY_OWNER_ID } from '@/lib/family';
 
 export default async function CobrancasPage() {
   const supabase = await createClient();
@@ -11,7 +12,7 @@ export default async function CobrancasPage() {
   const { data: pendentes } = await supabase
     .from("notificacoes_pendentes")
     .select("*")
-    .eq("proprietario_id", session.user.id);
+    .eq('proprietario_id', FAMILY_OWNER_ID);
 
   const { data: cobrancas } = await supabase
     .from("notificacoes_cobranca")
@@ -24,7 +25,7 @@ export default async function CobrancasPage() {
         imoveis!inner (titulo, proprietario_id)
       )
     `)
-    .eq("inquilinos.imoveis.proprietario_id", session.user.id)
+    .eq('inquilinos.imoveis.proprietario_id', FAMILY_OWNER_ID)
     .order("enviado_em", { ascending: false });
 
   return <CobrancasClient cobrancas={(cobrancas || []) as any} pendentes={(pendentes || []) as any} />;
