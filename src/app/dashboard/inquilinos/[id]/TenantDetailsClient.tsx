@@ -1,4 +1,4 @@
-// Based on Lugo — Copyright (c) 2024 Renilson Medeiros — MIT License
+// Based on Lugo — Copyright (c) 2024 Renilson Medeiras — MIT License
 "use client";
 import { toast } from "sonner";
 import { useState } from "react";
@@ -8,9 +8,11 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { User, Phone, Mail, Building2, Calendar, FileText, Edit, UserMinus, ArrowLeft, TrendingUp, Loader2 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { User, Phone, Mail, Building2, Calendar, FileText, Edit, UserMinus, ArrowLeft, TrendingUp, Loader2, MessageSquare, Scale, Copy, ExternalLink } from "lucide-react";
 import EncerrarContratoModal from "@/components/dashboard/EncerrarContratoModal";
 import { useFormFormatting } from "@/lib/hooks/useFormFormatting";
+import { supabase } from "@/lib/supabase";
 
 function fmtV(v: number) { return (v||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"}); }
 function fmtD(iso: string|null) { if(!iso)return"—"; const[y,m,d]=iso.split("-"); return`${d}/${m}/${y}`; }
@@ -25,6 +27,47 @@ export default function TenantDetailsClient({ tenant, historicoPag, historicoNot
   const { formatarCPF, formatarTelefone } = useFormFormatting();
   const [encerrarOpen, setEncerrarOpen] = useState(false);
   const [gerandoContrato, setGerandoContrato] = useState(false);
+
+  // T3.3 — Mensagem consolidada
+  const [msgConsolidada, setMsgConsolidada] = useState<string|null>(null);
+  const [gerandoMsg, setGerandoMsg] = useState(false);
+
+  // T5.5 — Enviar ao advogado
+  const [advogadoOpen, setAdvogadoOpen] = useState(false);
+  const [advogadoObs, setAdvogadoObs] = useState("");
+  const [enviandoAdvogado, setEnviandoAdvogado] = useState(false);
+
+  async function gerarMensagemConsolidada() {
+    setGerandoMsg(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("gerar_mensagem_consolidada", {
+        body: { inquilino_id: tenant.id },
+      });
+      if (error) throw error;
+      if (!data.success) throw new Error(data.error || "Erro desconhecido");
+      if (data.message === "Sem parcelas vencidas") {
+        toast.info("Nenhuma parcela vencida encontrada.");
+        return;
+      }
+      setMsgConsolidada(data.mensagem);
+    } catch (e: any) { toast.error("Erro ao gerar mensagem", { description: e.message }); }
+    finally { setGerandoMsg(false); }
+  }
+
+  async function enviarAdvogado() {
+    setEnviandoAdvogado(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("enviar_advogado", {
+        body: { inquilino_id: tenant.id, observacoes: advogadoObs || null },
+      });
+      if (error) throw error;
+      if (!data.success) throw new Error(data.error || "Erro desconhecido");
+      toast.success("Caso enviado ao advogado!", { description: tenant.nome_completo });
+      setAdvogadoOpen(false);
+      router.refresh();
+    } catch (e: any) { toast.error("Erro ao enviar", { description: e.message }); }
+    finally { setEnviandoAdvogado(false); }
+  }
 
   async function gerarContrato() {
     setGerandoContrato(true);
@@ -59,15 +102,20 @@ export default function TenantDetailsClient({ tenant, historicoPag, historicoNot
           </Button>
           <div>
             <h1 className="text-2xl font-semibold">{tenant.nome_completo}</h1>
-            <div className="flex items-center gap-2 mt-1">
+            <div className="flex items-center gap-2 mt-1 flex-wrap">
               <Badge className={tenant.status === "ativo" ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-600"}>
                 {tenant.status === "ativo" ? "Ativo" : "Encerrado"}
               </Badge>
+              {tenant.enviado_advogado_em && (
+                <Badge className="bg-red-100 text-red-700 border-red-200">
+                  ⚖️ Advogado desde {fmtD(tenant.enviado_advogado_em.split("T")[0])}
+                </Badge>
+              )}
               {im && <span className="text-sm text-muted-foreground">{im.titulo}</span>}
             </div>
           </div>
         </div>
-        <div className="flex gap-2 shrink-0">
+        <div className="flex gap-2 shrink-0 flex-wrap justify-end">
           <Link href={`/dashboard/inquilinos/${tenant.id}/editar`}>
             <Button variant="outline" size="sm"><Edit className="h-4 w-4 mr-1.5"/>Editar</Button>
           </Link>
@@ -75,6 +123,17 @@ export default function TenantDetailsClient({ tenant, historicoPag, historicoNot
             <Button variant="outline" size="sm" className="text-blue-600 border-blue-400"
               onClick={() => setReajusteOpen(true)}>
               <TrendingUp className="h-4 w-4 mr-1.5"/>Reajustar
+            </Button>
+          )}
+          <Button variant="outline" size="sm" className="text-green-700 border-green-400"
+            onClick={gerarMensagemConsolidada} disabled={gerandoMsg}>
+            {gerandoMsg ? <Loader2 className="h-4 w-4 animate-spin"/> : <MessageSquare className="h-4 w-4 mr-1.5"/>}
+            {gerandoMsg ? "..." : "Msg. consolidada"}
+          </Button>
+          {tenant.status === "ativo" && !tenant.enviado_advogado_em && (
+            <Button variant="outline" size="sm" className="text-red-700 border-red-400"
+              onClick={() => setAdvogadoOpen(true)}>
+              <Scale className="h-4 w-4 mr-1.5"/>Advogado
             </Button>
           )}
           {tenant.status === "ativo" && (
@@ -282,6 +341,64 @@ export default function TenantDetailsClient({ tenant, historicoPag, historicoNot
           indiceAtual={(tenant as any).indice_reajuste || "igpm"}
         />
       )}
+      {/* Modal mensagem consolidada — T3.3 */}
+      <Dialog open={!!msgConsolidada} onOpenChange={() => setMsgConsolidada(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-green-700">
+              <MessageSquare className="h-5 w-5"/>Mensagem consolidada — {tenant.nome_completo}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <pre className="whitespace-pre-wrap text-sm bg-muted rounded-lg p-3 max-h-64 overflow-y-auto">{msgConsolidada}</pre>
+            <div className="flex gap-2">
+              <Button variant="outline" className="flex-1" onClick={() => {
+                navigator.clipboard.writeText(msgConsolidada||"");
+                toast.success("Copiado!");
+              }}>
+                <Copy className="h-4 w-4 mr-2"/>Copiar
+              </Button>
+              <a href={`https://wa.me/${(tenant.telefone||"").replace(/\D/g,"").replace(/^0/,"").replace(/^(?!55)/,"55")}?text=${encodeURIComponent(msgConsolidada||"")}`}
+                target="_blank" rel="noreferrer" className="flex-1">
+                <Button className="w-full bg-[#25D366] hover:bg-[#128C7E] text-white">
+                  <ExternalLink className="h-4 w-4 mr-2"/>Enviar WhatsApp
+                </Button>
+              </a>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal enviar ao advogado — T5.5 */}
+      <Dialog open={advogadoOpen} onOpenChange={setAdvogadoOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-700">
+              <Scale className="h-5 w-5"/>Enviar ao advogado
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">O caso de <strong>{tenant.nome_completo}</strong> será registrado como enviado ao advogado.</p>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium">Observações (opcional)</label>
+              <textarea
+                className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm min-h-[80px] resize-none"
+                placeholder="Ex: Dois meses sem pagamento, sem resposta ao WhatsApp..."
+                value={advogadoObs}
+                onChange={e => setAdvogadoObs(e.target.value)}
+              />
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" onClick={() => setAdvogadoOpen(false)} disabled={enviandoAdvogado}>Cancelar</Button>
+              <Button className="bg-red-700 hover:bg-red-800 text-white gap-2" onClick={enviarAdvogado} disabled={enviandoAdvogado}>
+                {enviandoAdvogado ? <Loader2 className="h-4 w-4 animate-spin"/> : <Scale className="h-4 w-4"/>}
+                Confirmar envio
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Modal encerramento */}
       {encerrarOpen && (
         <EncerrarContratoModal
