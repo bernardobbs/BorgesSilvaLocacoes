@@ -37,14 +37,25 @@ export default function TenantDetailsClient({ tenant, historicoPag, historicoNot
   const [advogadoObs, setAdvogadoObs] = useState("");
   const [enviandoAdvogado, setEnviandoAdvogado] = useState(false);
 
+  async function invokeEdgeFunction(name: string, body: object) {
+    const sb = createClient();
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) throw new Error("Sessão expirada. Faça login novamente.");
+    const res = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/${name}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${session.access_token}` },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(20000),
+    });
+    const json = await res.json();
+    if (!res.ok || !json.success) throw new Error(json.error || `Erro ${res.status}`);
+    return json;
+  }
+
   async function gerarMensagemConsolidada() {
     setGerandoMsg(true);
     try {
-      const { data, error } = await supabase.functions.invoke("gerar_mensagem_consolidada", {
-        body: { inquilino_id: tenant.id },
-      });
-      if (error) throw error;
-      if (!data.success) throw new Error(data.error || "Erro desconhecido");
+      const data = await invokeEdgeFunction("gerar_mensagem_consolidada", { inquilino_id: tenant.id });
       if (data.message === "Sem parcelas vencidas") {
         toast.info("Nenhuma parcela vencida encontrada.");
         return;
@@ -57,21 +68,7 @@ export default function TenantDetailsClient({ tenant, historicoPag, historicoNot
   async function enviarAdvogado() {
     setEnviandoAdvogado(true);
     try {
-      const sb = createClient();
-      const { data: { session } } = await sb.auth.getSession();
-      if (!session) throw new Error("Sessão expirada. Faça login novamente.");
-      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-      const res = await fetch(`${supabaseUrl}/functions/v1/enviar_advogado`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({ inquilino_id: tenant.id, observacoes: advogadoObs || null, status: "despejo" }),
-        signal: AbortSignal.timeout(20000),
-      });
-      const json = await res.json();
-      if (!res.ok || !json.success) throw new Error(json.error || `Erro ${res.status}`);
+      await invokeEdgeFunction("enviar_advogado", { inquilino_id: tenant.id, observacoes: advogadoObs || null, status: "despejo" });
       toast.success("Pedido de despejo registrado!", { description: tenant.nome_completo });
       setAdvogadoOpen(false);
       router.refresh();
