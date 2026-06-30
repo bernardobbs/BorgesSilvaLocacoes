@@ -22,9 +22,10 @@ interface Props {
   imoveis: any[];
   acordos: any[];
   notificacoes: any[];
+  inadimplentesDB?: any[];
 }
 
-export default function NovoDashboard({ inquilinos, compMes, imoveis, acordos, notificacoes }: Props) {
+export default function NovoDashboard({ inquilinos, compMes, imoveis, acordos, notificacoes, inadimplentesDB = [] }: Props) {
   const router = useRouter();
   const [reajusteModal, setReajusteModal] = useState<{id:string;nome:string;valor:number;indice:string}|null>(null);
   const hoje = new Date();
@@ -59,28 +60,23 @@ export default function NovoDashboard({ inquilinos, compMes, imoveis, acordos, n
     return { totalMensal, recebido, aberto, inadimplente };
   }, [inquilinos, compMes]);
 
-  /* ── Inadimplentes ── */
+  /* ── Inadimplentes — usa v_inquilinos_inadimplentes (todas as parcelas, não só mês atual) — T1.4 ── */
   const inadimplentes = useMemo(() => {
-    return compMes
-      .filter((c:any) => c.situation === "expired")
-      .map((c:any) => {
-        const inq = inquilinos.find(i=>i.id===c.inquilino_id);
-        if (!inq) return null;
-        const im = Array.isArray(inq.imoveis)?inq.imoveis[0]:inq.imoveis;
-        const [vy,vm,vd] = (c.data_vencimento||"").split("-").map(Number);
-        const venc = new Date(vy,vm-1,vd);
-        const dias = Math.max(0, Math.floor((hoje.getTime()-venc.getTime())/86400000));
-        const multa = inq.valor_aluguel*(inq.multa_percentual/100);
-        const juros = inq.valor_aluguel*(inq.juros_percentual/100/30)*dias;
-        const total = inq.valor_aluguel+multa+juros;
-        const msg = encodeURIComponent(
-          `Olá, *${inq.nome_completo}*!\n\nO aluguel de *${im?.titulo||""}* está em aberto há *${dias} dias*.\n\n• Aluguel: ${fmtBRL(inq.valor_aluguel)}\n• Multa: ${fmtBRL(multa)}\n• Juros: ${fmtBRL(juros)}\n💰 Total: *${fmtBRL(total)}*\n\n*Borges Silva Locações*`
-        );
-        return { inq, im, dias, total, msg };
-      })
-      .filter(Boolean)
-      .sort((a:any,b:any)=>b.dias-a.dias);
-  }, [compMes, inquilinos, hoje]);
+    return inadimplentesDB.map((row: any) => {
+      const inq = inquilinos.find(i => i.id === row.inquilino_id);
+      const telefone = inq?.telefone || "";
+      const dias = row.dias_atraso_maximo;
+      const total = row.valor_total_vencido;
+      const parcelas = row.parcelas_vencidas;
+      const im = { titulo: row.titulo };
+      const multa = inq ? inq.valor_aluguel*(inq.multa_percentual/100) : 0;
+      const juros = inq ? inq.valor_aluguel*(inq.juros_percentual/100/30)*dias : 0;
+      const msg = encodeURIComponent(
+        `Olá, *${row.nome_completo}*!\n\nVocê possui *${parcelas} parcela${parcelas!==1?"s":""}* de aluguel em aberto no imóvel *${row.titulo}*.\n\n💰 Total em atraso: *${fmtBRL(total)}*\nMaior atraso: *${dias} dias*\n\n*Borges Silva Locações*`
+      );
+      return { inq: { ...row, id: row.inquilino_id, nome_completo: row.nome_completo, telefone }, im, dias, total, parcelas, msg };
+    }).sort((a:any,b:any)=>b.dias-a.dias);
+  }, [inadimplentesDB, inquilinos]);
 
   /* ── Ocupação ── */
   const ocupacao = useMemo(() => {
@@ -162,7 +158,7 @@ export default function NovoDashboard({ inquilinos, compMes, imoveis, acordos, n
           { label:"Total a receber", val:fmtBRL(financeiro.totalMensal), sub:`${inquilinos.length} contratos ativos`, cls:"" },
           { label:"Recebido", val:fmtBRL(financeiro.recebido), sub:`${pct(financeiro.recebido,financeiro.totalMensal)}% do mês`, cls:"text-green-600 dark:text-green-400" },
           { label:"A vencer", val:fmtBRL(financeiro.aberto), sub:"em aberto", cls:"text-yellow-600 dark:text-yellow-400" },
-          { label:"Inadimplente", val:fmtBRL(financeiro.inadimplente), sub:`${inadimplentes.length} inquilino${inadimplentes.length!==1?"s":""}`, cls:"text-red-600 dark:text-red-400" },
+          { label:"Inadimplente", val:fmtBRL(inadimplentesDB.reduce((s:number,r:any)=>s+(r.valor_total_vencido||0),0)||financeiro.inadimplente), sub:`${inadimplentes.length} inquilino${inadimplentes.length!==1?"s":""}`, cls:"text-red-600 dark:text-red-400" },
         ].map(({label,val,sub,cls})=>(
           <div key={label} className="bg-muted rounded-lg p-3">
             <p className="text-xs text-muted-foreground mb-1">{label}</p>
@@ -192,7 +188,7 @@ export default function NovoDashboard({ inquilinos, compMes, imoveis, acordos, n
                   <div key={item.inq.id} className="flex items-center gap-3 px-4 py-3 border-b last:border-0" style={{borderLeft:"3px solid #EF4444"}}>
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-sm truncate">{item.inq.nome_completo}</p>
-                      <p className="text-xs text-muted-foreground truncate">{item.im?.titulo} · D+{item.dias}</p>
+                      <p className="text-xs text-muted-foreground truncate">{item.im?.titulo} · {item.parcelas} parcela{item.parcelas!==1?"s":""} · D+{item.dias}</p>
                     </div>
                     <div className="text-right shrink-0">
                       <p className="text-sm font-medium text-red-600">{fmtBRL(item.total)}</p>

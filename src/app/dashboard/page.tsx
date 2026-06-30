@@ -25,6 +25,7 @@ export default async function DashboardPage() {
     imoveisRes,
     acordosRes,
     notifPendentesRes,
+    inadimplentesRes,
   ] = await Promise.all([
     // Inquilinos ativos com imóvel
     supabase.from("inquilinos")
@@ -54,6 +55,10 @@ export default async function DashboardPage() {
     supabase.from("notificacoes_pendentes")
       .select("*")
       .eq('proprietario_id', FAMILY_OWNER_ID),
+
+    // Inadimplentes completos (todas as parcelas, não só mês atual) — T1.4
+    supabase.from("v_inquilinos_inadimplentes")
+      .select("inquilino_id, nome_completo, titulo, endereco_bairro, parcelas_vencidas, valor_total_vencido, dias_atraso_maximo"),
   ]);
 
   return (
@@ -66,6 +71,7 @@ export default async function DashboardPage() {
         imoveis={(imoveisRes.data || []) as any}
         acordos={(acordosRes.data || []) as any}
         notificacoes={(notifPendentesRes.data || []) as any}
+        inadimplentesDB={(inadimplentesRes.data || []) as any}
       />
       <DividasExInquilinosSection userId={user.id} />
     </div>
