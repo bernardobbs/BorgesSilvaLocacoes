@@ -12,9 +12,19 @@ export async function createPropertyAction(propertyData: any) {
             throw new Error('Não autorizado');
         }
 
+        // Converter arrays vazios para null em campos integer
+        const propertyDataSanitized = {
+            ...propertyData,
+            quartos: Array.isArray(propertyData.quartos) && propertyData.quartos.length === 0 ? null : propertyData.quartos,
+            banheiros: Array.isArray(propertyData.banheiros) && propertyData.banheiros.length === 0 ? null : propertyData.banheiros,
+            vagas: Array.isArray(propertyData.vagas) && propertyData.vagas.length === 0 ? null : propertyData.vagas,
+            comodos: Array.isArray(propertyData.comodos) && propertyData.comodos.length === 0 ? null : propertyData.comodos,
+            max_pessoas: Array.isArray(propertyData.max_pessoas) && propertyData.max_pessoas.length === 0 ? null : propertyData.max_pessoas,
+        };
+
         const { data, error } = await supabase
             .from('imoveis')
-            .insert([propertyData])
+            .insert([propertyDataSanitized])
             .select()
             .single();
 
@@ -36,9 +46,19 @@ export async function updatePropertyAction(id: string, propertyData: any) {
         const { data: { user }, error: authError } = await supabase.auth.getUser();
         if (authError || !user) throw new Error('Não autorizado');
 
+        // Converter arrays vazios para null em campos integer
+        const propertyDataSanitized = {
+            ...propertyData,
+            quartos: Array.isArray(propertyData.quartos) && propertyData.quartos.length === 0 ? null : propertyData.quartos,
+            banheiros: Array.isArray(propertyData.banheiros) && propertyData.banheiros.length === 0 ? null : propertyData.banheiros,
+            vagas: Array.isArray(propertyData.vagas) && propertyData.vagas.length === 0 ? null : propertyData.vagas,
+            comodos: Array.isArray(propertyData.comodos) && propertyData.comodos.length === 0 ? null : propertyData.comodos,
+            max_pessoas: Array.isArray(propertyData.max_pessoas) && propertyData.max_pessoas.length === 0 ? null : propertyData.max_pessoas,
+        };
+
         const { data, error } = await supabase
             .from('imoveis')
-            .update(propertyData)
+            .update(propertyDataSanitized)
             .eq('id', id)
             .select()
             .single();
