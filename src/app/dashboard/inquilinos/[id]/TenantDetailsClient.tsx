@@ -58,11 +58,11 @@ export default function TenantDetailsClient({ tenant, historicoPag, historicoNot
     setEnviandoAdvogado(true);
     try {
       const { data, error } = await supabase.functions.invoke("enviar_advogado", {
-        body: { inquilino_id: tenant.id, observacoes: advogadoObs || null },
+        body: { inquilino_id: tenant.id, observacoes: advogadoObs || null, status: "despejo" },
       });
       if (error) throw error;
       if (!data.success) throw new Error(data.error || "Erro desconhecido");
-      toast.success("Caso enviado ao advogado!", { description: tenant.nome_completo });
+      toast.success("Pedido de despejo registrado!", { description: tenant.nome_completo });
       setAdvogadoOpen(false);
       router.refresh();
     } catch (e: any) { toast.error("Erro ao enviar", { description: e.message }); }
@@ -108,7 +108,7 @@ export default function TenantDetailsClient({ tenant, historicoPag, historicoNot
               </Badge>
               {tenant.enviado_advogado_em && (
                 <Badge className="bg-red-100 text-red-700 border-red-200">
-                  ⚖️ Advogado desde {fmtD(tenant.enviado_advogado_em.split("T")[0])}
+                  ⚖️ {tenant.advogado_status === "despejo" ? "Despejo desde" : "Adv. desde"} {fmtD(tenant.enviado_advogado_em.split("T")[0])}
                 </Badge>
               )}
               {im && <span className="text-sm text-muted-foreground">{im.titulo}</span>}
@@ -133,7 +133,7 @@ export default function TenantDetailsClient({ tenant, historicoPag, historicoNot
           {tenant.status === "ativo" && !tenant.enviado_advogado_em && (
             <Button variant="outline" size="sm" className="text-red-700 border-red-400"
               onClick={() => setAdvogadoOpen(true)}>
-              <Scale className="h-4 w-4 mr-1.5"/>Advogado
+              <Scale className="h-4 w-4 mr-1.5"/>Pedido de despejo
             </Button>
           )}
           {tenant.status === "ativo" && (
@@ -374,16 +374,16 @@ export default function TenantDetailsClient({ tenant, historicoPag, historicoNot
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-red-700">
-              <Scale className="h-5 w-5"/>Enviar ao advogado
+              <Scale className="h-5 w-5"/>Pedido de despejo
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <p className="text-sm text-muted-foreground">O caso de <strong>{tenant.nome_completo}</strong> será registrado como enviado ao advogado.</p>
+            <p className="text-sm text-muted-foreground">Será registrado um pedido de despejo para <strong>{tenant.nome_completo}</strong>. O caso será encaminhado ao advogado.</p>
             <div className="space-y-1.5">
-              <label className="text-xs font-medium">Observações (opcional)</label>
+              <label className="text-xs font-medium">Motivo / Observações (opcional)</label>
               <textarea
                 className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm min-h-[80px] resize-none"
-                placeholder="Ex: Dois meses sem pagamento, sem resposta ao WhatsApp..."
+                placeholder="Ex: 3 meses de inadimplência, notificação extrajudicial enviada em dd/mm/aaaa..."
                 value={advogadoObs}
                 onChange={e => setAdvogadoObs(e.target.value)}
               />
