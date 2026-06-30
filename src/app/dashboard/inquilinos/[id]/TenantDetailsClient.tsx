@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { User, Phone, Mail, Building2, Calendar, FileText, Edit, UserMinus, ArrowLeft, TrendingUp, Loader2, MessageSquare, Scale, Copy, ExternalLink } from "lucide-react";
 import EncerrarContratoModal from "@/components/dashboard/EncerrarContratoModal";
 import { useFormFormatting } from "@/lib/hooks/useFormFormatting";
-import { supabase } from "@/lib/supabase";
+import { createClient } from "@/lib/supabase/client";
 
 function fmtV(v: number) { return (v||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"}); }
 function fmtD(iso: string|null) { if(!iso)return"—"; const[y,m,d]=iso.split("-"); return`${d}/${m}/${y}`; }
@@ -57,15 +57,25 @@ export default function TenantDetailsClient({ tenant, historicoPag, historicoNot
   async function enviarAdvogado() {
     setEnviandoAdvogado(true);
     try {
-      const { data, error } = await supabase.functions.invoke("enviar_advogado", {
-        body: { inquilino_id: tenant.id, observacoes: advogadoObs || null, status: "despejo" },
+      const sb = createClient();
+      const { data: { session } } = await sb.auth.getSession();
+      if (!session) throw new Error("Sessão expirada. Faça login novamente.");
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+      const res = await fetch(`${supabaseUrl}/functions/v1/enviar_advogado`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ inquilino_id: tenant.id, observacoes: advogadoObs || null, status: "despejo" }),
+        signal: AbortSignal.timeout(20000),
       });
-      if (error) throw error;
-      if (!data.success) throw new Error(data.error || "Erro desconhecido");
+      const json = await res.json();
+      if (!res.ok || !json.success) throw new Error(json.error || `Erro ${res.status}`);
       toast.success("Pedido de despejo registrado!", { description: tenant.nome_completo });
       setAdvogadoOpen(false);
       router.refresh();
-    } catch (e: any) { toast.error("Erro ao enviar", { description: e.message }); }
+    } catch (e: any) { toast.error("Erro ao registrar", { description: e.message }); }
     finally { setEnviandoAdvogado(false); }
   }
 
