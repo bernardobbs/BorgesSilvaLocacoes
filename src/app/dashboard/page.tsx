@@ -58,7 +58,7 @@ export default async function DashboardPage() {
 
     // Inadimplentes completos (todas as parcelas, não só mês atual) — T1.4
     supabase.from("v_inquilinos_inadimplentes")
-      .select("inquilino_id, nome_completo, titulo, endereco_bairro, parcelas_vencidas, valor_total_vencido, dias_atraso_maximo"),
+      .select("id, nome_completo, titulo, endereco_bairro, parcelas_vencidas, valor_total_vencido, dias_atraso_maximo"),
   ]);
 
   return (

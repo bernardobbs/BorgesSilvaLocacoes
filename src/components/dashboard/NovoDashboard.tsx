@@ -63,18 +63,16 @@ export default function NovoDashboard({ inquilinos, compMes, imoveis, acordos, n
   /* ── Inadimplentes — usa v_inquilinos_inadimplentes (todas as parcelas, não só mês atual) — T1.4 ── */
   const inadimplentes = useMemo(() => {
     return inadimplentesDB.map((row: any) => {
-      const inq = inquilinos.find(i => i.id === row.inquilino_id);
+      const inq = inquilinos.find(i => i.id === row.id);
       const telefone = inq?.telefone || "";
       const dias = row.dias_atraso_maximo;
       const total = row.valor_total_vencido;
       const parcelas = row.parcelas_vencidas;
       const im = { titulo: row.titulo };
-      const multa = inq ? inq.valor_aluguel*(inq.multa_percentual/100) : 0;
-      const juros = inq ? inq.valor_aluguel*(inq.juros_percentual/100/30)*dias : 0;
       const msg = encodeURIComponent(
         `Olá, *${row.nome_completo}*!\n\nVocê possui *${parcelas} parcela${parcelas!==1?"s":""}* de aluguel em aberto no imóvel *${row.titulo}*.\n\n💰 Total em atraso: *${fmtBRL(total)}*\nMaior atraso: *${dias} dias*\n\n*Borges Silva Locações*`
       );
-      return { inq: { ...row, id: row.inquilino_id, nome_completo: row.nome_completo, telefone }, im, dias, total, parcelas, msg };
+      return { inq: { ...row, nome_completo: row.nome_completo, telefone }, im, dias, total, parcelas, msg };
     }).sort((a:any,b:any)=>b.dias-a.dias);
   }, [inadimplentesDB, inquilinos]);
 
