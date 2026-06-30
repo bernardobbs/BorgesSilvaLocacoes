@@ -8,7 +8,7 @@ import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import Link from "next/link";
 import { ArrowLeft, FileWarning, Download, ExternalLink, Loader2, ChevronDown, ChevronUp, Phone, Mail, Building2 } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "@/lib/supabase";
+import { createClient } from "@/lib/supabase/client";
 
 function fmtBRL(v:number){return(v||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});}
 function fmtData(iso:string|null){if(!iso)return"—";const[y,m,d]=iso.split("-");return`${d}/${m}/${y}`;}
@@ -74,11 +74,21 @@ export default function InativosClient({ inativos, comprovantesMap, notificacoes
   async function marcarEnviadoAdvogado(id: string, obs: string) {
     setMarcandoAdv(id);
     try {
-      const { data, error } = await supabase.functions.invoke("enviar_advogado", {
-        body: { inquilino_id: id, observacoes: obs || null, status: "enviado" },
+      const sb = createClient();
+      const { data: { session } } = await sb.auth.getSession();
+      if (!session) throw new Error("Sessão expirada. Faça login novamente.");
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+      const res = await fetch(`${supabaseUrl}/functions/v1/enviar_advogado`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ inquilino_id: id, observacoes: obs || null, status: "enviado" }),
+        signal: AbortSignal.timeout(20000),
       });
-      if (error) throw error;
-      if (!data.success) throw new Error(data.error || "Erro desconhecido");
+      const json = await res.json();
+      if (!res.ok || !json.success) throw new Error(json.error || `Erro ${res.status}`);
       toast.success("Caso marcado como enviado ao advogado!");
       setAdvModal(null);
       setAdvObs("");
