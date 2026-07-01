@@ -96,8 +96,8 @@ export default function RegistrarPagamentoModal({ open, onClose, onSuccess, inqu
       const v_multa = aplicarEncargos && atrasado ? enc.multa : 0;
       const v_juros = aplicarEncargos && atrasado ? enc.juros : 0;
       const totalFinal = inquilino.valor_aluguel + v_multa + v_juros;
-      const venc = new Date(mesReferencia);
-      venc.setDate(inquilino.dia_vencimento);
+      const [vy, vm] = mesReferencia.split("-").map(Number);
+      const venc = new Date(vy, vm - 1, inquilino.dia_vencimento);
 
       // Registrar pagamento + gerar hash via servidor
       const regRes = await fetch("/api/pagamento/registrar", {
