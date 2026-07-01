@@ -143,9 +143,9 @@ export default function TenantDetailsClient({ tenant, historicoPag, historicoNot
             </div>
           ) : (
             <div className="col-span-2">
-              <Button size="sm" variant="outline" onClick={gerarContrato} disabled={gerandoContrato}
-                className="gap-1.5">
-                {gerandoContrato ? <><Loader2 className="h-3.5 w-3.5 animate-spin"/>Gerando...</> : <>📄 Gerar contrato PDF</>}
+              <Button size="sm" variant="outline" disabled
+                className="gap-1.5 opacity-50 cursor-not-allowed">
+                📄 Gerar contrato PDF
               </Button>
             </div>
           )}
