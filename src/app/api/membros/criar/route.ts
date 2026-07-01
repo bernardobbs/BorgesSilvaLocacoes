@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { createClient as createAdminClient } from "@supabase/supabase-js";
+import { sanitizeSupabaseKey } from "@/lib/supabase/admin";
 
 // Detecta caracteres não-ASCII que podem quebrar headers HTTP
 function sanitizeAscii(s: string): string {
@@ -47,20 +48,12 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // nome_completo pode ter acentos (Latin-1, code point ≤ 255), mas caracteres
-    // tipográficos como travessão (—), aspas curvas etc. têm code point > 255 e
-    // quebram os headers HTTP (ByteString) na criação do usuário no GoTrue.
-    nome_completo = String(nome_completo)
-      .normalize("NFKC")
-      .replace(/[‐-―]/g, "-")        // travessões/hífens longos -> hífen
-      .replace(/[‘’‛]/g, "'")   // aspas simples curvas -> reta
-      .replace(/[“”]/g, '"')         // aspas duplas curvas -> reta
-      .replace(/[^\x00-\xFF]/g, "")            // remove qualquer caractere > 255 restante
-      .trim();
+    // nome_completo pode ter acentos — é só user_metadata (vai no corpo), mantém como veio
+    nome_completo = String(nome_completo).trim();
 
     const admin = createAdminClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
+      sanitizeSupabaseKey(process.env.SUPABASE_SERVICE_ROLE_KEY)
     );
 
     const { data: newUser, error: createError } = await admin.auth.admin.createUser({
