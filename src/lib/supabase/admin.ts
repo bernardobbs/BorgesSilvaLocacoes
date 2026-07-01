@@ -12,10 +12,21 @@ import { createClient } from '@supabase/supabase-js';
  * caractere > 255 por segurança, deixando a chave utilizável em headers.
  */
 export function sanitizeSupabaseKey(key?: string): string {
-    return (key || '')
+    const limpa = (key || '')
         .replace(/[‐-―]/g, '-') // travessões/hífens tipográficos → hífen ASCII
         .replace(/[^\x00-\xFF]/g, '')     // remove qualquer caractere restante > 255
         .trim();
+
+    // Uma chave real (JWT ou sb_secret_…) nunca contém espaços/quebras de linha.
+    // Se contiver, a variável de ambiente foi preenchida com um texto/nota em vez
+    // da chave — devolvemos um erro claro em vez do críptico "invalid header value".
+    if (/\s/.test(limpa)) {
+        throw new Error(
+            'SUPABASE_SERVICE_ROLE_KEY inválida: o valor configurado não parece ser uma chave (contém espaços/texto). ' +
+            'Configure no Vercel a chave "service_role" (secret) do Supabase → Project Settings → API.'
+        );
+    }
+    return limpa;
 }
 
 export function createAdminClient() {
