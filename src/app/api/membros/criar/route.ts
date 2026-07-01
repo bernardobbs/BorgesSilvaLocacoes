@@ -47,8 +47,16 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // nome_completo pode ter acentos — é só user_metadata, mantém como veio
-    nome_completo = String(nome_completo).trim();
+    // nome_completo pode ter acentos (Latin-1, code point ≤ 255), mas caracteres
+    // tipográficos como travessão (—), aspas curvas etc. têm code point > 255 e
+    // quebram os headers HTTP (ByteString) na criação do usuário no GoTrue.
+    nome_completo = String(nome_completo)
+      .normalize("NFKC")
+      .replace(/[‐-―]/g, "-")        // travessões/hífens longos -> hífen
+      .replace(/[‘’‛]/g, "'")   // aspas simples curvas -> reta
+      .replace(/[“”]/g, '"')         // aspas duplas curvas -> reta
+      .replace(/[^\x00-\xFF]/g, "")            // remove qualquer caractere > 255 restante
+      .trim();
 
     const admin = createAdminClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
