@@ -16,7 +16,8 @@ interface Inquilino {
   id: string; nome_completo: string; cpf: string; cnpj: string;
   tipo_pessoa: string; telefone: string; valor_aluguel: number;
   dia_vencimento: number; multa_percentual: number; juros_percentual: number;
-  imovel_id: string; imoveis: { id: string; titulo: string; endereco_rua: string; endereco_numero: string; };
+  imovel_id: string; data_inicio?: string;
+  imoveis: { id: string; titulo: string; endereco_rua: string; endereco_numero: string; };
 }
 
 interface Comprovante {
@@ -57,11 +58,27 @@ export default function RegistrarPagamentoModal({ open, onClose, onSuccess, inqu
   const [obs, setObs] = useState("");
   const [aplicarEncargos, setAplicarEncargos] = useState(true);
 
-  const vencimento = comprovante?.data_vencimento
-    ? new Date(comprovante.data_vencimento)
-    : (() => { const d = new Date(mesReferencia); d.setDate(inquilino.dia_vencimento); return d; })();
+  const vencimento = (() => {
+    if (comprovante?.data_vencimento) {
+      const [y, m, d] = comprovante.data_vencimento.split("-").map(Number);
+      return new Date(y, m - 1, d);
+    }
+    // Parse month using local time (avoids UTC shift that would move July → June in UTC-3)
+    const [y, m] = mesReferencia.split("-").map(Number);
+    let venc = new Date(y, m - 1, inquilino.dia_vencimento);
+    // Never set due date before contract start
+    if (inquilino.data_inicio) {
+      const [dy, dm, dd] = inquilino.data_inicio.split("-").map(Number);
+      const inicio = new Date(dy, dm - 1, dd);
+      if (venc < inicio) venc = new Date(dy, dm - 1, inquilino.dia_vencimento);
+      if (venc < inicio) { venc.setMonth(venc.getMonth() + 1); }
+    }
+    return venc;
+  })();
 
   const hoje = new Date();
+  hoje.setHours(0, 0, 0, 0);
+  vencimento.setHours(0, 0, 0, 0);
   const diasAtraso = Math.max(0, Math.floor((hoje.getTime() - vencimento.getTime()) / 86400000));
   const atrasado = diasAtraso > 0;
   const enc = calcEncargos(inquilino.valor_aluguel, inquilino.multa_percentual, inquilino.juros_percentual, diasAtraso);
@@ -79,8 +96,8 @@ export default function RegistrarPagamentoModal({ open, onClose, onSuccess, inqu
       const v_multa = aplicarEncargos && atrasado ? enc.multa : 0;
       const v_juros = aplicarEncargos && atrasado ? enc.juros : 0;
       const totalFinal = inquilino.valor_aluguel + v_multa + v_juros;
-      const venc = new Date(mesReferencia);
-      venc.setDate(inquilino.dia_vencimento);
+      const [vy, vm] = mesReferencia.split("-").map(Number);
+      const venc = new Date(vy, vm - 1, inquilino.dia_vencimento);
 
       // Registrar pagamento + gerar hash via servidor
       const regRes = await fetch("/api/pagamento/registrar", {
