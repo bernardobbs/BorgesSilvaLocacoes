@@ -97,12 +97,13 @@ export default function NovoDashboard({ inquilinos, compMes, imoveis, acordos, n
   /* ── Próximos vencimentos (7 dias) ── */
   const proximos = useMemo(() => {
     const items: any[] = [];
+    const hojeNorm = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
     const limite = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate()+7);
 
     inquilinos.forEach(inq => {
       const im = Array.isArray(inq.imoveis)?inq.imoveis[0]:inq.imoveis;
       const venc = new Date(hoje.getFullYear(), hoje.getMonth(), inq.dia_vencimento);
-      if (venc >= hoje && venc <= limite) {
+      if (venc >= hojeNorm && venc <= limite) {
         const comp = compMes.find(c=>c.inquilino_id===inq.id);
         if (!comp || comp.situation !== "billed") {
           const dias = Math.floor((venc.getTime()-hoje.getTime())/86400000);
