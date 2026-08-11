@@ -51,10 +51,11 @@ export async function POST(request: NextRequest) {
     // nome_completo pode ter acentos — é só user_metadata (vai no corpo), mantém como veio
     nome_completo = String(nome_completo).trim();
 
-    const admin = createAdminClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      sanitizeSupabaseKey(process.env.SUPABASE_SERVICE_ROLE_KEY)
-    );
+    const serviceKey = sanitizeSupabaseKey(process.env.SUPABASE_SERVICE_ROLE_KEY);
+    if (!serviceKey) {
+      return NextResponse.json({ error: "Configuração do servidor incompleta: SUPABASE_SERVICE_ROLE_KEY ausente." }, { status: 500 });
+    }
+    const admin = createAdminClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, serviceKey);
 
     const { data: newUser, error: createError } = await admin.auth.admin.createUser({
       email: emailLimpo,

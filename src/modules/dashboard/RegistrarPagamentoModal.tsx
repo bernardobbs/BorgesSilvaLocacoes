@@ -70,8 +70,10 @@ export default function RegistrarPagamentoModal({ open, onClose, onSuccess, inqu
     if (inquilino.data_inicio) {
       const [dy, dm, dd] = inquilino.data_inicio.split("-").map(Number);
       const inicio = new Date(dy, dm - 1, dd);
-      if (venc < inicio) venc = new Date(dy, dm - 1, inquilino.dia_vencimento);
-      if (venc < inicio) { venc.setMonth(venc.getMonth() + 1); }
+      if (venc < inicio) {
+        venc = new Date(dy, dm - 1, inquilino.dia_vencimento);
+        if (venc < inicio) venc.setMonth(venc.getMonth() + 1);
+      }
     }
     return venc;
   })();

@@ -23,10 +23,11 @@ export async function POST(request: NextRequest) {
     const { userId } = await request.json();
     if (userId === user.id) return NextResponse.json({ error: "Não é possível remover sua própria conta" }, { status: 400 });
 
-    const admin = createAdminClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      sanitizeSupabaseKey(process.env.SUPABASE_SERVICE_ROLE_KEY)
-    );
+    const serviceKey = sanitizeSupabaseKey(process.env.SUPABASE_SERVICE_ROLE_KEY);
+    if (!serviceKey) {
+      return NextResponse.json({ error: "Configuração do servidor incompleta: SUPABASE_SERVICE_ROLE_KEY ausente." }, { status: 500 });
+    }
+    const admin = createAdminClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, serviceKey);
 
     const { error } = await admin.auth.admin.deleteUser(userId);
     if (error) throw error;
