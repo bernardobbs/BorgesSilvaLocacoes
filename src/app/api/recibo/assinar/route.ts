@@ -30,14 +30,11 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Gerar número sequencial do recibo
-    const { count } = await supabase.from("comprovantes")
-      .select("*", { count: "exact", head: true })
-      .eq("mes_referencia", comp.mes_referencia)
-      .not("receipt_hash", "is", null);
-
-    const sequencia = (count || 0) + 1;
-    const receiptNumber = gerarReceiptNumber(comp.mes_referencia, sequencia);
+    // Gerar número sequencial atômico (evita race condition com COUNT+1)
+    const mesPrefixo = comp.mes_referencia.slice(0, 7); // "YYYY-MM"
+    const { data: seqData, error: seqErr } = await supabase.rpc("next_receipt_seq", { p_mes: mesPrefixo });
+    if (seqErr) throw new Error(`Erro ao gerar número do recibo: ${seqErr.message}`);
+    const receiptNumber = gerarReceiptNumber(comp.mes_referencia, seqData as number);
 
     // Gerar hash HMAC-SHA256
     const hash = gerarReceiptHash({

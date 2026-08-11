@@ -1,12 +1,19 @@
 // Based on Lugo — Copyright (c) 2024 Renilson Medeiros — MIT License
 // Rota de keepalive — evita que o Supabase pause por inatividade (free tier)
 // Chamada pelo cron-job.org a cada 3 dias
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  // Proteger com token secreto — cron externo deve enviar ?token=KEEPALIVE_SECRET
+  const token = request.nextUrl.searchParams.get("token");
+  const secret = process.env.KEEPALIVE_SECRET;
+  if (!secret || token !== secret) {
+    return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+  }
+
   try {
     const supabase = await createClient();
 

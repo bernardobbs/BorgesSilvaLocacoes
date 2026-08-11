@@ -26,7 +26,11 @@ export async function POST(request: NextRequest) {
     if (profile?.role !== "admin") return NextResponse.json({ error: "Apenas administradores podem adicionar membros" }, { status: 403 });
 
     const body = await request.json();
+    const ROLES_PERMITIDOS = ["operador", "admin"] as const;
     let { email, nome_completo, password, role } = body;
+    if (role && !ROLES_PERMITIDOS.includes(role)) {
+      return NextResponse.json({ error: "Role inválido. Valores permitidos: operador, admin" }, { status: 400 });
+    }
 
     if (!email || !nome_completo || !password) {
       return NextResponse.json({ error: "Campos obrigatórios faltando" }, { status: 400 });
