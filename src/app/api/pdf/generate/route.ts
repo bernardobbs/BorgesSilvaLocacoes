@@ -2,32 +2,31 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import jsPDF from 'jspdf';
 import { FAMILY_OWNER_ID } from '@/lib/family';
+import { z } from 'zod';
 
 export const dynamic = 'force-dynamic';
 
-interface ReceiptData {
-    referenceMonth: string;
-    referenceYear: string;
-    tenantName: string;
-    tenantCpf: string;
-    propertyName: string;
-    propertyAddress: string;
-    rentValue: string;
-    condoValue?: string;
-    iptuValue?: string;
-    otherValue?: string;
-    totalValue: string;
-    paymentDate: string;
-    observations?: string;
-}
-
-interface RequestBody {
-    data: ReceiptData;
-    userId: string;
-    propertyId: string;
-    tenantId: string;
-    comprovante_id?: string;
-}
+const bodySchema = z.object({
+    userId: z.string().uuid(),
+    propertyId: z.string().uuid(),
+    tenantId: z.string().uuid().optional(),
+    comprovante_id: z.string().uuid().optional(),
+    data: z.object({
+        referenceMonth: z.string().max(2),
+        referenceYear: z.string().max(4),
+        tenantName: z.string().max(500),
+        tenantCpf: z.string().max(20),
+        propertyName: z.string().max(500),
+        propertyAddress: z.string().max(500),
+        rentValue: z.string().max(50),
+        condoValue: z.string().max(50).optional(),
+        iptuValue: z.string().max(50).optional(),
+        otherValue: z.string().max(50).optional(),
+        totalValue: z.string().max(50),
+        paymentDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        observations: z.string().max(500).optional(),
+    }),
+});
 
 const months = [
     "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
@@ -38,20 +37,11 @@ export async function POST(request: NextRequest) {
     try {
         const supabase = await createClient();
 
-        const rawBody = await request.json();
-
-        // Validar tamanho dos campos de texto para evitar PDFs gigantes
-        const MAX_STR = 500;
-        const data: ReceiptData = {
-          ...rawBody.data,
-          tenantName:     String(rawBody.data?.tenantName     || "").slice(0, MAX_STR),
-          tenantCpf:      String(rawBody.data?.tenantCpf      || "").slice(0, 20),
-          propertyName:   String(rawBody.data?.propertyName   || "").slice(0, MAX_STR),
-          propertyAddress:String(rawBody.data?.propertyAddress|| "").slice(0, MAX_STR),
-          observations:   rawBody.data?.observations ? String(rawBody.data.observations).slice(0, MAX_STR) : undefined,
-        };
-        const body: RequestBody = { ...rawBody, data };
-        const { userId, propertyId, comprovante_id } = body;
+        const parsed = bodySchema.safeParse(await request.json());
+        if (!parsed.success) {
+            return NextResponse.json({ success: false, error: parsed.error.issues[0].message }, { status: 400 });
+        }
+        const { userId, propertyId, comprovante_id, data } = parsed.data;
 
         // 1. Validar autenticação e obter UID real da sessão
         const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -296,7 +286,7 @@ export async function POST(request: NextRequest) {
     } catch (error: any) {
         console.error('Error generating PDF:', error);
         return NextResponse.json(
-            { success: false, error: error.message || 'Failed to generate PDF' },
+            { success: false, error: 'Erro ao gerar documento' },
             { status: 500 }
         );
     }

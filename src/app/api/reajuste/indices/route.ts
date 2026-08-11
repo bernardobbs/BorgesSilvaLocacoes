@@ -1,5 +1,6 @@
 // Based on Lugo — Copyright (c) 2024 Renilson Medeiros — MIT License
 import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@/lib/supabase/server";
 
 const SERIES: Record<string, number> = {
   ipca: 433,
@@ -29,6 +30,10 @@ async function buscarAcumulado12Meses(serie: number): Promise<number | null> {
 }
 
 export async function GET(req: NextRequest) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+
   const { searchParams } = new URL(req.url);
   const indice = searchParams.get("indice") || "igpm";
   const serie = SERIES[indice];

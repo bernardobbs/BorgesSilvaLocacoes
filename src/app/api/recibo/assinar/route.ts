@@ -4,11 +4,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { FAMILY_OWNER_ID } from "@/lib/family";
 import { gerarReceiptHash, gerarReceiptNumber } from "@/lib/receiptHash";
+import { z } from "zod";
+
+const schema = z.object({ comprovante_id: z.string().uuid() });
 
 export async function POST(req: NextRequest) {
   try {
-    const { comprovante_id } = await req.json();
-    if (!comprovante_id) return NextResponse.json({ error: "comprovante_id obrigatório" }, { status: 400 });
+    const parsed = schema.safeParse(await req.json());
+    if (!parsed.success) return NextResponse.json({ error: "comprovante_id inválido" }, { status: 400 });
+    const { comprovante_id } = parsed.data;
 
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();

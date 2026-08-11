@@ -24,8 +24,9 @@ export async function GET(request: NextRequest) {
       .limit(1);
 
     if (error) {
+      console.error("[keepalive] DB error:", error.message);
       return NextResponse.json(
-        { status: "error", message: error.message, timestamp: new Date().toISOString() },
+        { status: "error", timestamp: new Date().toISOString() },
         { status: 500 }
       );
     }
@@ -36,8 +37,9 @@ export async function GET(request: NextRequest) {
       timestamp: new Date().toISOString(),
     });
   } catch (err: any) {
+    console.error("[keepalive] error:", err);
     return NextResponse.json(
-      { status: "error", message: err.message, timestamp: new Date().toISOString() },
+      { status: "error", timestamp: new Date().toISOString() },
       { status: 500 }
     );
   }

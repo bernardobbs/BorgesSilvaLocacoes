@@ -52,11 +52,25 @@ export async function POST(req: NextRequest) {
       descricao,
     } = parsed.data;
 
+    // Resolver family_owner_id para ownership checks
+    const { data: userProfile } = await supabase.from("profiles").select("family_owner_id").eq("id", user.id).single();
+    const familyOwnerId = userProfile?.family_owner_id || user.id;
+
     // 1. Atualizar comprovante existente OR inserir novo
     let compId = comprovante_id;
     let comp: any = null;
 
     if (compId) {
+      // Verificar ownership do comprovante antes de atualizar
+      const { data: existing } = await supabase
+        .from("comprovantes")
+        .select("id, imoveis!inner(proprietario_id)")
+        .eq("id", compId)
+        .single();
+      if (!existing || (existing as any).imoveis?.proprietario_id !== familyOwnerId) {
+        return NextResponse.json({ error: "Não autorizado" }, { status: 403 });
+      }
+
       const { data, error } = await supabase.from("comprovantes")
         .update({
           valor, valor_multa, valor_juros,

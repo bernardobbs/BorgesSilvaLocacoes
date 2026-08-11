@@ -2,6 +2,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import nodemailer from "nodemailer";
 import { createClient } from "@/lib/supabase/server";
+import { z } from "zod";
+
+const bodySchema = z.object({ comprovante_id: z.string().uuid() });
 
 function fmtBRL(v: number) {
   return (v || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -21,8 +24,9 @@ function mesLabel(iso: string) {
 
 export async function POST(req: NextRequest) {
   try {
-    const { comprovante_id } = await req.json();
-    if (!comprovante_id) return NextResponse.json({ error: "comprovante_id obrigatório" }, { status: 400 });
+    const parsed = bodySchema.safeParse(await req.json());
+    if (!parsed.success) return NextResponse.json({ error: "comprovante_id inválido" }, { status: 400 });
+    const { comprovante_id } = parsed.data;
 
     if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
       return NextResponse.json({ error: "E-mail não configurado. Adicione GMAIL_USER e GMAIL_APP_PASSWORD nas variáveis de ambiente do Vercel." }, { status: 503 });

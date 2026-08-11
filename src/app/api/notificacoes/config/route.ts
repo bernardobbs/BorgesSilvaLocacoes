@@ -51,15 +51,21 @@ export async function POST(request: NextRequest) {
 
   if (action === "update") {
     if (!id) return NextResponse.json({ error: "id obrigatório para update" }, { status: 400 });
+    // Verificar que o registro existe (RLS garante que só registros acessíveis são retornados)
+    const { data: existing } = await supabase.from("config_notificacoes").select("id").eq("id", id).single();
+    if (!existing) return NextResponse.json({ error: "Configuração não encontrada" }, { status: 404 });
     const { error } = await supabase.from("config_notificacoes")
       .update({ dias_atraso, label, mensagem_template, ativo })
       .eq("id", id);
-    if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+    if (error) return NextResponse.json({ error: "Erro ao atualizar configuração" }, { status: 400 });
     return NextResponse.json({ success: true });
   }
 
   if (action === "delete") {
     if (!id) return NextResponse.json({ error: "id obrigatório para delete" }, { status: 400 });
+    // Verificar que o registro existe antes de deletar
+    const { data: existing } = await supabase.from("config_notificacoes").select("id").eq("id", id).single();
+    if (!existing) return NextResponse.json({ error: "Configuração não encontrada" }, { status: 404 });
     const { count } = await supabase.from("config_notificacoes")
       .select("*", { count: "exact", head: true }).eq("ativo", true);
     if ((count || 0) <= 2)

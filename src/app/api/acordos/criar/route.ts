@@ -1,6 +1,7 @@
 // Based on Lugo — Copyright (c) 2024 Renilson Medeiros — MIT License
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { FAMILY_OWNER_ID } from "@/lib/family";
 import { z } from "zod";
 
 const acordoSchema = z.object({
@@ -29,6 +30,11 @@ export async function POST(request: NextRequest) {
       desconto, num_parcelas, valor_parcela, primeira_parcela,
       meses_cobertos, observacoes
     } = parsed.data;
+
+    // Verificar ownership do imóvel
+    const { data: imovelCheck } = await supabase.from("imoveis")
+      .select("id").eq("id", imovel_id).eq("proprietario_id", FAMILY_OWNER_ID).single();
+    if (!imovelCheck) return NextResponse.json({ error: "Não autorizado" }, { status: 403 });
 
     // Criar o acordo
     const { data: acordo, error: eAcordo } = await supabase

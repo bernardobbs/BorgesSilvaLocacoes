@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { checkRateLimit, rateLimitResponse } from "@/lib/rateLimit";
+import { createClient } from "@/lib/supabase/server";
 
 export async function GET(request: NextRequest) {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+
     const ip = request.headers.get("x-forwarded-for") ?? "unknown";
     if (!checkRateLimit(`cep:${ip}`, 30, 60_000)) return rateLimitResponse();
 
