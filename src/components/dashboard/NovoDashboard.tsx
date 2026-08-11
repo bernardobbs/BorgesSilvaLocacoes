@@ -47,40 +47,60 @@ export default function NovoDashboard({ inquilinos, compMes, imoveis, acordos, n
 
   /* ── Financeiro do mês ── */
   const financeiro = useMemo(() => {
-    let recebido = 0, aberto = 0, inadimplente = 0;
+    let recebido = 0, aberto = 0;
     const totalMensal = inquilinos.reduce((s,i)=>s+(i.valor_aluguel||0), 0);
 
     compMes.forEach((c:any) => {
-      const t = (c.valor||0)+(c.valor_multa||0)+(c.valor_juros||0);
       if (c.situation === "billed") recebido += c.valor||0;
-      else if (c.situation === "expired") inadimplente += t;
       else aberto += c.valor||0;
     });
-    return { totalMensal, recebido, aberto, inadimplente };
-  }, [inquilinos, compMes]);
 
-  /* ── Inadimplentes ── */
+    // Inadimplente: soma dos totais por inquilino na view notificacoes_pendentes
+    const porInquilino = new Map<string, number>();
+    notificacoes.forEach((n: any) => {
+      const prev = porInquilino.get(n.inquilino_id) || 0;
+      if (Number(n.dias_atraso) > prev) {
+        porInquilino.set(n.inquilino_id, Number(n.valor_total));
+      }
+    });
+    const inadimplente = Array.from(porInquilino.values()).reduce((s, v) => s + v, 0);
+
+    return { totalMensal, recebido, aberto, inadimplente };
+  }, [inquilinos, compMes, notificacoes]);
+
+  /* ── Inadimplentes — fonte: notificacoes_pendentes (view do banco) ── */
   const inadimplentes = useMemo(() => {
-    return compMes
-      .filter((c:any) => c.situation === "expired")
-      .map((c:any) => {
-        const inq = inquilinos.find(i=>i.id===c.inquilino_id);
-        if (!inq) return null;
-        const im = Array.isArray(inq.imoveis)?inq.imoveis[0]:inq.imoveis;
-        const [vy,vm,vd] = (c.data_vencimento||"").split("-").map(Number);
-        const venc = new Date(vy,vm-1,vd);
-        const dias = Math.max(0, Math.floor((hoje.getTime()-venc.getTime())/86400000));
-        const multa = inq.valor_aluguel*(inq.multa_percentual/100);
-        const juros = inq.valor_aluguel*(inq.juros_percentual/100/30)*dias;
-        const total = inq.valor_aluguel+multa+juros;
+    // Deduplicar por inquilino (pode haver múltiplos meses em atraso — pega o mais antigo)
+    const porInquilino = new Map<string, any>();
+    notificacoes.forEach((n: any) => {
+      const prev = porInquilino.get(n.inquilino_id);
+      if (!prev || Number(n.dias_atraso) > Number(prev.dias_atraso)) {
+        porInquilino.set(n.inquilino_id, n);
+      }
+    });
+    return Array.from(porInquilino.values())
+      .map((n: any) => {
+        const inq = inquilinos.find(i => i.id === n.inquilino_id) || {
+          id: n.inquilino_id,
+          nome_completo: n.nome_completo,
+          telefone: n.telefone,
+          valor_aluguel: Number(n.valor_aluguel),
+          multa_percentual: Number(n.multa_percentual),
+          juros_percentual: Number(n.juros_percentual),
+          imoveis: { titulo: n.imovel_titulo },
+        };
+        const im = Array.isArray((inq as any).imoveis) ? (inq as any).imoveis[0] : (inq as any).imoveis;
+        const dias = Number(n.dias_atraso);
+        const total = Number(n.valor_total);
+        const multa = Number(n.valor_aluguel) * (Number(n.multa_percentual) / 100);
+        const juros = total - Number(n.valor_aluguel) - multa;
         const msg = encodeURIComponent(
-          `Olá, *${inq.nome_completo}*!\n\nO aluguel de *${im?.titulo||""}* está em aberto há *${dias} dias*.\n\n• Aluguel: ${fmtBRL(inq.valor_aluguel)}\n• Multa: ${fmtBRL(multa)}\n• Juros: ${fmtBRL(juros)}\n💰 Total: *${fmtBRL(total)}*\n\n*Borges Silva Locações*`
+          `Olá, *${n.nome_completo}*!\n\nO aluguel de *${n.imovel_titulo}* está em aberto há *${dias} dias*.\n\n• Aluguel: ${fmtBRL(Number(n.valor_aluguel))}\n• Multa: ${fmtBRL(multa)}\n• Juros: ${fmtBRL(juros)}\n💰 Total: *${fmtBRL(total)}*\n\n*Borges Silva Locações*`
         );
-        return { inq, im, dias, total, msg };
+        return { inq, im, dias, total, msg, n };
       })
-      .filter(Boolean)
-      .sort((a:any,b:any)=>b.dias-a.dias);
-  }, [compMes, inquilinos, hoje]);
+      .sort((a: any, b: any) => b.dias - a.dias);
+  }, [notificacoes, inquilinos]);
 
   /* ── Ocupação ── */
   const ocupacao = useMemo(() => {
