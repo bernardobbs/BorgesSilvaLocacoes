@@ -2,6 +2,7 @@
 // Rota de assinatura criptográfica de recibos (HMAC-SHA256)
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { FAMILY_OWNER_ID } from "@/lib/family";
 import { gerarReceiptHash, gerarReceiptNumber } from "@/lib/receiptHash";
 
 export async function POST(req: NextRequest) {
@@ -13,12 +14,17 @@ export async function POST(req: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
 
-    // Buscar dados do comprovante
+    // Buscar dados do comprovante + verificar ownership via imovel
     const { data: comp } = await supabase.from("comprovantes")
-      .select("id, imovel_id, inquilino_id, valor, data_pagamento, mes_referencia, receipt_hash, receipt_number")
+      .select("id, imovel_id, inquilino_id, valor, data_pagamento, mes_referencia, receipt_hash, receipt_number, imoveis!inner(proprietario_id)")
       .eq("id", comprovante_id).single();
 
     if (!comp) return NextResponse.json({ error: "Comprovante não encontrado" }, { status: 404 });
+
+    const imovelComp = Array.isArray((comp as any).imoveis) ? (comp as any).imoveis[0] : (comp as any).imoveis;
+    if (imovelComp?.proprietario_id !== FAMILY_OWNER_ID) {
+      return NextResponse.json({ error: "Acesso negado" }, { status: 403 });
+    }
 
     // Se já tem hash — não recalcular (imutável)
     if (comp.receipt_hash) {
@@ -69,6 +75,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true, hash, receiptNumber });
   } catch (err: any) {
     console.error("Erro ao assinar recibo:", err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return NextResponse.json({ error: "Erro interno do servidor" }, { status: 500 });
   }
 }

@@ -1,10 +1,13 @@
 // Based on Lugo — Copyright (c) 2024 Renilson Medeiros — MIT License
 import { NextRequest, NextResponse } from "next/server";
-import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
+import { createClient } from "@/lib/supabase/server";
+import { FAMILY_OWNER_ID } from "@/lib/family";
 import jsPDF from "jspdf";
+import { z } from "zod";
 
 export const dynamic = "force-dynamic";
+
+const schema = z.object({ inquilino_id: z.string().uuid() });
 
 function fmtBRL(v: number) { return (v||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"}); }
 function fmtData(iso:string|null) { if(!iso)return"—"; const[y,m,d]=iso.split("-"); return`${d}/${m}/${y}`; }
@@ -13,21 +16,18 @@ function dataExtenso(d:Date) { const M=["janeiro","fevereiro","março","abril","
 
 export async function POST(request: NextRequest) {
   try {
-    const cookieStore = await cookies();
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      { cookies: { getAll:()=>cookieStore.getAll(), setAll:(c)=>c.forEach(({name,value,options})=>cookieStore.set(name,value,options)) } }
-    );
+    const parsed = schema.safeParse(await request.json());
+    if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
+    const { inquilino_id } = parsed.data;
+
+    const supabase = await createClient();
     const { data:{ user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error:"Não autorizado" },{status:401});
-
-    const { inquilino_id } = await request.json();
 
     // Buscar todos os dados do inquilino
     const [inqRes, compRes, notifRes, acordoRes, configRes] = await Promise.all([
       supabase.from("inquilinos").select(`
-        *, imoveis(titulo, endereco_rua, endereco_numero, endereco_bairro, endereco_cidade, endereco_estado)
+        *, imoveis!inner(id, proprietario_id, titulo, endereco_rua, endereco_numero, endereco_bairro, endereco_cidade, endereco_estado)
       `).eq("id", inquilino_id).single(),
       supabase.from("comprovantes").select("*").eq("inquilino_id", inquilino_id).order("mes_referencia"),
       supabase.from("notificacoes_cobranca").select("*, profiles(nome_completo), config_notificacoes(label)").eq("inquilino_id", inquilino_id).order("enviado_em"),
@@ -38,6 +38,7 @@ export async function POST(request: NextRequest) {
     const inq = inqRes.data;
     if (!inq) return NextResponse.json({ error:"Inquilino não encontrado" },{status:404});
     const im = Array.isArray(inq.imoveis) ? inq.imoveis[0] : inq.imoveis;
+    if ((im as any)?.proprietario_id !== FAMILY_OWNER_ID) return NextResponse.json({ error:"Acesso negado" },{status:403});
 
     // Montar config do locador
     const cfgMap: Record<string,string> = {};
@@ -262,6 +263,7 @@ export async function POST(request: NextRequest) {
     const pdfBase64 = pdfUrl ? undefined : pdfBuffer.toString("base64");
     return NextResponse.json({ success: true, pdfUrl, pdfBase64 });
   } catch(e:any) {
-    return NextResponse.json({ error:e.message },{status:500});
+    console.error("Erro ao gerar dossiê jurídico:", e);
+    return NextResponse.json({ error: "Erro ao gerar documento" },{status:500});
   }
 }

@@ -50,6 +50,6 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ success: true, valor_anterior: inq.valor_aluguel, valor_novo });
   } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    console.error("API error:", err); return NextResponse.json({ error: "Erro interno do servidor" }, { status: 500 });
   }
 }

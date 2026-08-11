@@ -107,7 +107,7 @@ export async function POST(req: NextRequest) {
     });
 
     // 3. Salvar hash no comprovante
-    await supabase.from("comprovantes")
+    const { error: hashErr } = await supabase.from("comprovantes")
       .update({
         receipt_hash: hash,
         receipt_number: receiptNumber,
@@ -115,6 +115,7 @@ export async function POST(req: NextRequest) {
       })
       .eq("id", compId)
       .is("receipt_hash", null); // idempotente
+    if (hashErr) console.error("Aviso: falha ao salvar hash no comprovante:", hashErr.message);
 
     // 4. Registrar auditoria
     await supabase.from("auditoria_recibos").insert({
@@ -134,6 +135,6 @@ export async function POST(req: NextRequest) {
     });
   } catch (err: any) {
     console.error("Erro ao registrar pagamento:", err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    console.error("API error:", err); return NextResponse.json({ error: "Erro interno do servidor" }, { status: 500 });
   }
 }

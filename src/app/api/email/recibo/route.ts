@@ -122,6 +122,6 @@ body{font-family:Arial,sans-serif;background:#f5f5f5;margin:0;padding:20px}
     return NextResponse.json({ success: true });
   } catch (err: any) {
     console.error("Email error:", err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    console.error("API error:", err); return NextResponse.json({ error: "Erro interno do servidor" }, { status: 500 });
   }
 }

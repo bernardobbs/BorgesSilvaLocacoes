@@ -17,10 +17,15 @@ const bodySchema = z.object({
 });
 
 export async function POST(req: NextRequest) {
-  const ip = req.headers.get("x-forwarded-for") ?? "unknown";
-  if (!checkRateLimit(`email-cobranca:${ip}`, 10, 60_000)) return rateLimitResponse();
-
   try {
+    // Autenticação antes do rate limit para evitar bloqueio de usuários legítimos
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+
+    const ip = req.headers.get("x-forwarded-for") ?? "unknown";
+    if (!checkRateLimit(`email-cobranca:${user.id}:${ip}`, 10, 60_000)) return rateLimitResponse();
+
     const parsed = bodySchema.safeParse(await req.json());
     if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
     const { inquilino_id, estagio, dias_atraso, valor_total, meses_pendentes } = parsed.data;
@@ -28,10 +33,6 @@ export async function POST(req: NextRequest) {
     if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
       return NextResponse.json({ skipped: true, reason: "Gmail não configurado" });
     }
-
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
 
     // Buscar dados do inquilino
     const { data: inq } = await supabase.from("inquilinos")
@@ -163,6 +164,6 @@ th:last-child,td:last-child{text-align:right}
     return NextResponse.json({ success: true, to: inq.email });
   } catch (err: any) {
     console.error("Email cobrança error:", err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    console.error("API error:", err); return NextResponse.json({ error: "Erro interno do servidor" }, { status: 500 });
   }
 }

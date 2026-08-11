@@ -185,6 +185,6 @@ export async function GET(req: NextRequest) {
     });
   } catch (err: any) {
     console.error("Relatorio error:", err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    console.error("API error:", err); return NextResponse.json({ error: "Erro interno do servidor" }, { status: 500 });
   }
 }
