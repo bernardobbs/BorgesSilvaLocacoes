@@ -14,6 +14,9 @@ async function getSupabase() {
 
 export async function GET() {
   const supabase = await getSupabase();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+
   const { data } = await supabase.from("config_notificacoes")
     .select("*").order("ordem");
   return NextResponse.json({ data });

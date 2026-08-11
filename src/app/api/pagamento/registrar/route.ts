@@ -3,6 +3,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createHmac } from "crypto";
+import { z } from "zod";
+
+const registrarSchema = z.object({
+  comprovante_id: z.string().uuid().nullable().optional(),
+  inquilino_id: z.string().uuid(),
+  imovel_id: z.string().uuid(),
+  mes_referencia: z.string().regex(/^\d{4}-\d{2}(-\d{2})?$/),
+  valor: z.number().positive(),
+  valor_multa: z.number().min(0),
+  valor_juros: z.number().min(0),
+  data_pagamento: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  forma_pagamento: z.enum(["pix","dinheiro","transferencia","cartao","cheque","deposito"]),
+  descricao: z.string().max(500).nullable().optional(),
+  data_vencimento: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+});
 
 function gerarHash(payload: Record<string, string>): string {
   const secret = process.env.RECEIPT_SECRET;
@@ -22,7 +37,8 @@ export async function POST(req: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
 
-    const body = await req.json();
+    const parsed = registrarSchema.safeParse(await req.json());
+    if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
     const {
       comprovante_id,
       inquilino_id,
@@ -34,7 +50,7 @@ export async function POST(req: NextRequest) {
       data_pagamento,
       forma_pagamento,
       descricao,
-    } = body;
+    } = parsed.data;
 
     // 1. Atualizar comprovante existente OR inserir novo
     let compId = comprovante_id;
@@ -73,14 +89,12 @@ export async function POST(req: NextRequest) {
 
     if (!compId) throw new Error("Comprovante não identificado após salvar");
 
-    // 2. Gerar hash e número do recibo
-    const { count } = await supabase.from("comprovantes")
-      .select("*", { count: "exact", head: true })
-      .eq("mes_referencia", mes_referencia)
-      .not("receipt_hash", "is", null);
-
-    const seq = (count || 0) + 1;
-    const receiptNumber = gerarReceiptNumber(mes_referencia, seq);
+    // 2. Número de recibo via sequence atômica no banco (evita race condition com COUNT+1)
+    const mesPrefixo = mes_referencia.slice(0, 7); // "YYYY-MM"
+    const { data: seqData, error: seqErr } = await supabase.rpc("next_receipt_seq", { p_mes: mesPrefixo });
+    if (seqErr) throw new Error(`Erro ao gerar número do recibo: ${seqErr.message}`);
+    const seq = seqData as number;
+    const receiptNumber = gerarReceiptNumber(mesPrefixo, seq);
 
     const hash = gerarHash({
       receiptNumber,

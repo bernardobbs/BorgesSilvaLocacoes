@@ -194,16 +194,19 @@ export async function POST(request: NextRequest) {
     const pdfBuffer = Buffer.from(doc.output("arraybuffer"));
     const fileName = `${user.id}/${imovel_id}/notificacoes/${Date.now()}-notificacao-${nome_inquilino.normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-zA-Z0-9-_]/g,"-").replace(/-+/g,"-").toLowerCase()}.pdf`;
 
-    const { error: uploadError } = await supabase.storage
-      .from("documentos")
-      .upload(fileName, pdfBuffer, { contentType: "application/pdf", upsert: false });
+    let pdfUrl = "";
+    try {
+      const { error: uploadError } = await supabase.storage
+        .from("documentos")
+        .upload(fileName, pdfBuffer, { contentType: "application/pdf", upsert: false });
+      if (!uploadError) {
+        const { data: signed } = await supabase.storage.from("documentos").createSignedUrl(fileName, 60*60*24*7);
+        pdfUrl = signed?.signedUrl || "";
+      }
+    } catch { /* Storage falhou \u2014 PDF retornado como base64 */ }
 
-    if (uploadError) throw uploadError;
-
-    const { data: signed } = await supabase.storage.from("documentos").createSignedUrl(fileName, 60*60*24*7);
-        const publicUrl = signed?.signedUrl || "";
-
-    return NextResponse.json({ success: true, pdfUrl: publicUrl });
+    const pdfBase64 = pdfUrl ? undefined : pdfBuffer.toString("base64");
+    return NextResponse.json({ success: true, pdfUrl, pdfBase64 });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 });
   }

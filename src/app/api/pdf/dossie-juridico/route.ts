@@ -249,12 +249,18 @@ export async function POST(request: NextRequest) {
 
 
     const pdfBuffer = Buffer.from(doc.output("arraybuffer"));
-    const { error:ue } = await supabase.storage.from("documentos").upload(fileName,pdfBuffer,{contentType:"application/pdf"});
-    if(ue) throw ue;
-    const { data: signed } = await supabase.storage.from("documentos").createSignedUrl(fileName, 60*60*24*7);
-    const publicUrl = signed?.signedUrl || "";
 
-    return NextResponse.json({ success:true, pdfUrl:publicUrl });
+    let pdfUrl = "";
+    try {
+      const { error: ue } = await supabase.storage.from("documentos").upload(fileName, pdfBuffer, { contentType: "application/pdf" });
+      if (!ue) {
+        const { data: signed } = await supabase.storage.from("documentos").createSignedUrl(fileName, 60*60*24*7);
+        pdfUrl = signed?.signedUrl || "";
+      }
+    } catch { /* Storage falhou — PDF retornado como base64 */ }
+
+    const pdfBase64 = pdfUrl ? undefined : pdfBuffer.toString("base64");
+    return NextResponse.json({ success: true, pdfUrl, pdfBase64 });
   } catch(e:any) {
     return NextResponse.json({ error:e.message },{status:500});
   }

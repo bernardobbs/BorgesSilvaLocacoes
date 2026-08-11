@@ -2,13 +2,28 @@
 import { NextRequest, NextResponse } from "next/server";
 import nodemailer from "nodemailer";
 import { createClient } from "@/lib/supabase/server";
+import { checkRateLimit, rateLimitResponse } from "@/lib/rateLimit";
+import { z } from "zod";
 
 function fmtBRL(v: number) { return (v||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"}); }
 function fmtD(iso: string) { if(!iso)return"—"; const[y,m,d]=iso.split("-"); return`${d}/${m}/${y}`; }
 
+const bodySchema = z.object({
+  inquilino_id: z.string().uuid(),
+  estagio: z.number().int().min(1).optional(),
+  dias_atraso: z.number().int().min(0),
+  valor_total: z.number().min(0),
+  meses_pendentes: z.array(z.string()).optional(),
+});
+
 export async function POST(req: NextRequest) {
+  const ip = req.headers.get("x-forwarded-for") ?? "unknown";
+  if (!checkRateLimit(`email-cobranca:${ip}`, 10, 60_000)) return rateLimitResponse();
+
   try {
-    const { inquilino_id, estagio, dias_atraso, valor_total, meses_pendentes } = await req.json();
+    const parsed = bodySchema.safeParse(await req.json());
+    if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
+    const { inquilino_id, estagio, dias_atraso, valor_total, meses_pendentes } = parsed.data;
 
     if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
       return NextResponse.json({ skipped: true, reason: "Gmail não configurado" });

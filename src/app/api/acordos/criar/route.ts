@@ -2,6 +2,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { z } from "zod";
+
+const acordoSchema = z.object({
+  inquilino_id: z.string().uuid(),
+  imovel_id: z.string().uuid(),
+  valor_original: z.number().positive(),
+  valor_acordo: z.number().positive(),
+  desconto: z.number().min(0),
+  num_parcelas: z.number().int().min(1).max(60),
+  valor_parcela: z.number().positive(),
+  primeira_parcela: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  meses_cobertos: z.array(z.string()).optional(),
+  observacoes: z.string().max(1000).nullable().optional(),
+});
 
 export async function POST(request: NextRequest) {
   try {
@@ -15,11 +29,13 @@ export async function POST(request: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
 
+    const parsed = acordoSchema.safeParse(await request.json());
+    if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
     const {
       inquilino_id, imovel_id, valor_original, valor_acordo,
       desconto, num_parcelas, valor_parcela, primeira_parcela,
       meses_cobertos, observacoes
-    } = await request.json();
+    } = parsed.data;
 
     // Criar o acordo
     const { data: acordo, error: eAcordo } = await supabase
