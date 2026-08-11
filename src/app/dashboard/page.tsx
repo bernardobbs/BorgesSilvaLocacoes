@@ -32,12 +32,11 @@ export default async function DashboardPage() {
       .eq('imoveis.proprietario_id', FAMILY_OWNER_ID)
       .eq("status", "ativo"),
 
-    // Comprovantes do mês atual
+    // Comprovantes do mês atual (todos) + inadimplentes de meses anteriores
     supabase.from("comprovantes")
-      .select("id, inquilino_id, valor, valor_multa, valor_juros, situation, data_vencimento, data_pagamento")
+      .select("id, inquilino_id, valor, valor_multa, valor_juros, situation, data_vencimento, data_pagamento, mes_referencia, imoveis!inner(proprietario_id)")
       .eq('imoveis.proprietario_id', FAMILY_OWNER_ID)
-      .gte("mes_referencia", mesInicio)
-      .select("id, inquilino_id, valor, valor_multa, valor_juros, situation, data_vencimento, data_pagamento, imoveis!inner(proprietario_id)"),
+      .or(`mes_referencia.gte.${mesInicio},situation.eq.expired`),
 
     // Imóveis (ocupação)
     supabase.from("imoveis")
