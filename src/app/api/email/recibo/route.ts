@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import nodemailer from "nodemailer";
 import { createClient } from "@/lib/supabase/server";
+import { FAMILY_OWNER_ID } from "@/lib/family";
 import { z } from "zod";
 
 const bodySchema = z.object({ comprovante_id: z.string().uuid() });
@@ -41,11 +42,16 @@ export async function POST(req: NextRequest) {
       .select(`id, mes_referencia, valor, valor_multa, valor_juros, receipt_hash, receipt_number,
         data_vencimento, data_pagamento, forma_pagamento,
         inquilinos (id, nome_completo, email,
-          imoveis (titulo, endereco_rua, endereco_numero, endereco_bairro, endereco_cidade))`)
+          imoveis!inner (titulo, endereco_rua, endereco_numero, endereco_bairro, endereco_cidade, proprietario_id))`)
       .eq("id", comprovante_id)
       .single();
 
     if (!comp) return NextResponse.json({ error: "Comprovante não encontrado" }, { status: 404 });
+
+    // Verificar ownership do comprovante
+    const inq0 = Array.isArray(comp.inquilinos) ? (comp.inquilinos as any)[0] : comp.inquilinos as any;
+    const im0  = Array.isArray(inq0?.imoveis)   ? (inq0.imoveis as any)[0]   : inq0?.imoveis as any;
+    if (im0?.proprietario_id !== FAMILY_OWNER_ID) return NextResponse.json({ error: "Não autorizado" }, { status: 403 });
 
     const inq = Array.isArray(comp.inquilinos) ? (comp.inquilinos as any)[0] : comp.inquilinos as any;
     const im  = Array.isArray(inq?.imoveis)    ? (inq.imoveis as any)[0]    : inq?.imoveis as any;

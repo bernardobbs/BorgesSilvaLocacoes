@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
     const { data, error } = await supabase.from("config_notificacoes")
       .insert({ ordem, dias_atraso, label, mensagem_template, ativo: true })
       .select().single();
-    if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+    if (error) return NextResponse.json({ error: "Erro ao criar configuração" }, { status: 400 });
     return NextResponse.json({ data });
   }
 

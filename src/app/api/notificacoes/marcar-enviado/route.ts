@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
 
     if (insertError) {
       console.error("Erro ao salvar notificação:", insertError);
-      return NextResponse.json({ error: insertError.message }, { status: 500 });
+      return NextResponse.json({ error: "Erro ao registrar notificação" }, { status: 500 });
     }
 
     return NextResponse.json({ success: true });

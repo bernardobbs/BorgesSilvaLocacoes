@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import nodemailer from "nodemailer";
 import { createClient } from "@/lib/supabase/server";
+import { FAMILY_OWNER_ID } from "@/lib/family";
 import { checkRateLimit, rateLimitResponse } from "@/lib/rateLimit";
 import { z } from "zod";
 
@@ -34,11 +35,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ skipped: true, reason: "Gmail não configurado" });
     }
 
-    // Buscar dados do inquilino
+    // Buscar dados do inquilino com verificação de ownership
     const { data: inq } = await supabase.from("inquilinos")
-      .select("nome_completo, email, cpf, telefone, valor_aluguel, multa_percentual, juros_percentual, imoveis(titulo, endereco_rua, endereco_numero, endereco_cidade)")
+      .select("nome_completo, email, cpf, telefone, valor_aluguel, multa_percentual, juros_percentual, imoveis!inner(titulo, endereco_rua, endereco_numero, endereco_cidade, proprietario_id)")
       .eq("id", inquilino_id).single();
 
+    const im0 = Array.isArray(inq?.imoveis) ? (inq.imoveis as any)[0] : inq?.imoveis as any;
+    if (im0?.proprietario_id !== FAMILY_OWNER_ID) return NextResponse.json({ error: "Não autorizado" }, { status: 403 });
     if (!inq?.email) return NextResponse.json({ skipped: true, reason: "Sem e-mail cadastrado" });
 
     // Buscar config do locador
@@ -47,7 +50,7 @@ export async function POST(req: NextRequest) {
     const cfgMap: Record<string,string> = {};
     (cfg||[]).forEach((r:any) => { cfgMap[r.chave] = r.valor||""; });
 
-    const im = Array.isArray(inq.imoveis) ? (inq.imoveis as any)[0] : inq.imoveis as any;
+    const im = im0;
     const locadorNome = cfgMap.locador_nome || "Borges Silva Locações";
     const gestorNome = cfgMap.procurador_ativo==="true" ? cfgMap.procurador_nome : "";
 

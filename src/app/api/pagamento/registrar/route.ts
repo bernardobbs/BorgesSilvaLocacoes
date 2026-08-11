@@ -85,6 +85,11 @@ export async function POST(req: NextRequest) {
       if (error) throw new Error(`Erro ao atualizar: ${error.message}`);
       comp = data;
     } else {
+      // Verificar ownership do imóvel antes de INSERT
+      const { data: imovelCheck } = await supabase.from("imoveis")
+        .select("id").eq("id", imovel_id).eq("proprietario_id", familyOwnerId).single();
+      if (!imovelCheck) return NextResponse.json({ error: "Não autorizado" }, { status: 403 });
+
       const { data, error } = await supabase.from("comprovantes")
         .insert({
           inquilino_id, imovel_id, mes_referencia,

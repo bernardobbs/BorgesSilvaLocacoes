@@ -31,10 +31,14 @@ export async function POST(request: NextRequest) {
       meses_cobertos, observacoes
     } = parsed.data;
 
-    // Verificar ownership do imóvel
+    // Verificar ownership do imóvel e que o inquilino pertence a esse imóvel
     const { data: imovelCheck } = await supabase.from("imoveis")
       .select("id").eq("id", imovel_id).eq("proprietario_id", FAMILY_OWNER_ID).single();
     if (!imovelCheck) return NextResponse.json({ error: "Não autorizado" }, { status: 403 });
+
+    const { data: inquilinoCheck } = await supabase.from("inquilinos")
+      .select("id").eq("id", inquilino_id).eq("imovel_id", imovel_id).single();
+    if (!inquilinoCheck) return NextResponse.json({ error: "Não autorizado" }, { status: 403 });
 
     // Criar o acordo
     const { data: acordo, error: eAcordo } = await supabase

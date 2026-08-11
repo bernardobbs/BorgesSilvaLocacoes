@@ -50,17 +50,20 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ success: false, error: 'Não autorizado' }, { status: 401 });
         }
 
-        // Buscar hash de autenticação se comprovante_id fornecido
+        // Buscar hash de autenticação se comprovante_id fornecido (com ownership check)
         let receiptHash: string | null = null;
         let receiptNumber: string | null = null;
         if (comprovante_id) {
             const { data: comp } = await supabase
                 .from('comprovantes')
-                .select('receipt_hash, receipt_number')
+                .select('receipt_hash, receipt_number, imoveis!inner(proprietario_id)')
                 .eq('id', comprovante_id)
                 .maybeSingle();
-            receiptHash = comp?.receipt_hash || null;
-            receiptNumber = comp?.receipt_number || null;
+            const compImovel = Array.isArray((comp as any)?.imoveis) ? (comp as any).imoveis[0] : (comp as any)?.imoveis;
+            if (comp && compImovel?.proprietario_id === FAMILY_OWNER_ID) {
+                receiptHash = comp.receipt_hash || null;
+                receiptNumber = comp.receipt_number || null;
+            }
         }
 
         // 2. Blindagem: Validar se o userId do body é o mesmo da sessão (evita Personagem/Spoofing)

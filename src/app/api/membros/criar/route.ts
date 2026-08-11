@@ -3,6 +3,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createClient as createAdminClient } from "@supabase/supabase-js";
 import { sanitizeSupabaseKey } from "@/lib/supabase/admin";
+import { z } from "zod";
+
+const criarMembroSchema = z.object({
+  email: z.string().email().max(254),
+  nome_completo: z.string().min(1).max(200),
+  password: z.string().min(8).max(128),
+  role: z.enum(["operador", "admin"]).optional(),
+});
 
 // Detecta caracteres não-ASCII que podem quebrar headers HTTP
 function sanitizeAscii(s: string): string {
@@ -18,20 +26,13 @@ export async function POST(request: NextRequest) {
     const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
     if (profile?.role !== "admin") return NextResponse.json({ error: "Apenas administradores podem adicionar membros" }, { status: 403 });
 
-    const body = await request.json();
-    const ROLES_PERMITIDOS = ["operador", "admin"] as const;
-    let { email, nome_completo, password, role } = body;
-    if (role && !ROLES_PERMITIDOS.includes(role)) {
-      return NextResponse.json({ error: "Role inválido. Valores permitidos: operador, admin" }, { status: 400 });
-    }
-
-    if (!email || !nome_completo || !password) {
-      return NextResponse.json({ error: "Campos obrigatórios faltando" }, { status: 400 });
-    }
+    const parsedBody = criarMembroSchema.safeParse(await request.json());
+    if (!parsedBody.success) return NextResponse.json({ error: parsedBody.error.issues[0].message }, { status: 400 });
+    let { email, nome_completo, password, role } = parsedBody.data;
 
     // Sanitizar email e password: só ASCII permitido (HTTP headers ByteString)
-    const emailLimpo = sanitizeAscii(String(email).trim());
-    const passwordLimpa = sanitizeAscii(String(password));
+    const emailLimpo = sanitizeAscii(email.trim());
+    const passwordLimpa = sanitizeAscii(password);
 
     if (emailLimpo !== email.trim()) {
       return NextResponse.json({
