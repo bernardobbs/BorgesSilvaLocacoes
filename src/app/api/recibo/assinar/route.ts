@@ -69,19 +69,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true, hash, receiptNumber });
   } catch (err: any) {
     console.error("Erro ao assinar recibo:", err);
-
-    // Registrar falha na auditoria
-    try {
-      const supabase = await createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      await supabase.from("auditoria_recibos").insert({
-        comprovante_id: req.body ? (await req.json().catch(() => ({}))).comprovante_id : null,
-        operacao: "falha",
-        usuario_id: user?.id,
-        detalhe: err.message,
-      });
-    } catch {}
-
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }

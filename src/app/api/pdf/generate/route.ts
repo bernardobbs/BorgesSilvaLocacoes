@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
+import { createClient } from '@/lib/supabase/server';
 import jsPDF from 'jspdf';
 import { FAMILY_OWNER_ID } from '@/lib/family';
 
@@ -37,27 +36,22 @@ const months = [
 
 export async function POST(request: NextRequest) {
     try {
-        // Criar cliente Supabase autenticado
-        const cookieStore = await cookies();
-        const supabase = createServerClient(
-            process.env.NEXT_PUBLIC_SUPABASE_URL!,
-            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-            {
-                cookies: {
-                    getAll() {
-                        return cookieStore.getAll();
-                    },
-                    setAll(cookiesToSet) {
-                        cookiesToSet.forEach(({ name, value, options }) =>
-                            cookieStore.set(name, value, options)
-                        );
-                    },
-                },
-            }
-        );
+        const supabase = await createClient();
 
-        const body: RequestBody = await request.json();
-        const { data, userId, propertyId, comprovante_id } = body;
+        const rawBody = await request.json();
+
+        // Validar tamanho dos campos de texto para evitar PDFs gigantes
+        const MAX_STR = 500;
+        const data: ReceiptData = {
+          ...rawBody.data,
+          tenantName:     String(rawBody.data?.tenantName     || "").slice(0, MAX_STR),
+          tenantCpf:      String(rawBody.data?.tenantCpf      || "").slice(0, 20),
+          propertyName:   String(rawBody.data?.propertyName   || "").slice(0, MAX_STR),
+          propertyAddress:String(rawBody.data?.propertyAddress|| "").slice(0, MAX_STR),
+          observations:   rawBody.data?.observations ? String(rawBody.data.observations).slice(0, MAX_STR) : undefined,
+        };
+        const body: RequestBody = { ...rawBody, data };
+        const { userId, propertyId, comprovante_id } = body;
 
         // 1. Validar autenticação e obter UID real da sessão
         const { data: { user }, error: authError } = await supabase.auth.getUser();
