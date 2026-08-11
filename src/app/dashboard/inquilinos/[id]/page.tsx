@@ -6,8 +6,8 @@ import TenantDetailsClient from "./TenantDetailsClient";
 export default async function TenantDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const supabase = await createClient();
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) redirect("/login");
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
 
   const [tenantRes, pagsRes, notifsRes, acordosRes] = await Promise.all([
     supabase.from("inquilinos")

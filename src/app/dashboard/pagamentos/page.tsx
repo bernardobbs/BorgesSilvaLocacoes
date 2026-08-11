@@ -6,8 +6,8 @@ import { FAMILY_OWNER_ID } from '@/lib/family';
 
 export default async function PagamentosPage() {
   const supabase = await createClient();
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) redirect("/login");
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
 
   // Buscar todos os inquilinos ativos com imóvel
   const { data: inquilinos } = await supabase
@@ -86,7 +86,7 @@ export default async function PagamentosPage() {
         imoveis: Array.isArray(i.imoveis) ? i.imoveis[0] : i.imoveis,
       }))}
       initialComprovantes={comprovantes || []}
-      userId={session.user.id}
+      userId={user.id}
     />
   );
 }

@@ -70,7 +70,11 @@ export async function POST(request: NextRequest) {
     }
 
     if (newUser.user) {
-      await admin.from("profiles").update({ role: role || "operador", nome_completo }).eq("id", newUser.user.id);
+      const { data: adminProfile } = await supabase.from("profiles").select("family_owner_id").eq("id", user.id).single();
+      const familyOwnerId = adminProfile?.family_owner_id || user.id;
+      await admin.from("profiles")
+        .update({ role: role || "operador", nome_completo, family_owner_id: familyOwnerId })
+        .eq("id", newUser.user.id);
     }
 
     return NextResponse.json({ success: true });
