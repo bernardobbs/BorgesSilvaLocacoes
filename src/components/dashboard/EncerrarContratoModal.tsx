@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
+import { resolverPdfHref, revogarSeBlob } from "@/lib/pdfResponse";
 import { LogOut, Loader2, AlertTriangle, CheckCircle2, FileText, ExternalLink } from "lucide-react";
 
 interface Comprovante {
@@ -75,7 +76,10 @@ export default function EncerrarContratoModal({ open, onClose, onSuccess, inquil
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error);
-      setPdfUrl(json.pdfUrl);
+      // pdfUrl vem "" quando o upload ao Storage falha; a rota devolve base64.
+      const href = resolverPdfHref(json);
+      if (!href) throw new Error("O relatório foi gerado mas não pôde ser entregue.");
+      setPdfUrl(prev => { revogarSeBlob(prev); return href; });
       toast.success("Relatório gerado!");
     } catch (e: any) {
       toast.error("Erro ao gerar relatório", { description: e.message });

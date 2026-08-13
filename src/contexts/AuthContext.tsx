@@ -36,22 +36,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // INIT + AUTH LISTENER
   useEffect(() => {
-    // onAuthStateChange fires immediately with INITIAL_SESSION on subscribe,
-    // so it is the single source of truth for the loading state.
-    // A separate init() that also sets loading=false would race with it and
-    // briefly show "Usuário" before the profile arrives.
+    let ativo = true;
+
+    // onAuthStateChange dispara imediatamente com INITIAL_SESSION no subscribe,
+    // então ele é a única fonte de verdade do estado de loading. Um init()
+    // separado que também zerasse o loading correria com ele e mostraria
+    // "Usuário" antes do perfil chegar.
+    //
+    // O callback NÃO pode ser async nem aguardar chamadas do Supabase: ele é
+    // invocado segurando o lock de auth, e qualquer query aninhada tenta
+    // adquirir o mesmo lock — travando as duas. Por isso o carregamento do
+    // perfil é adiado para fora do callback, que retorna na hora e libera
+    // o lock. O loading só cai depois que o perfil chega, preservando a
+    // correção da saudação.
     const { data: listener } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      (event, session) => {
         const currentUser = session?.user || null;
         setUser(currentUser);
 
-        if (currentUser) {
-          await loadProfile(currentUser.id);
-        } else {
+        if (!currentUser) {
           setProfile(null);
+          setLoading(false);
+          return;
         }
 
-        setLoading(false);
+        setTimeout(async () => {
+          if (!ativo) return;
+          try {
+            await loadProfile(currentUser.id);
+          } finally {
+            if (ativo) setLoading(false);
+          }
+        }, 0);
       }
     );
 
@@ -64,6 +80,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }, 10 * 60 * 1000);
 
     return () => {
+      ativo = false;
       clearInterval(sessionCheckInterval);
       listener.subscription.unsubscribe();
     };

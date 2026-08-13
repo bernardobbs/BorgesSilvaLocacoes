@@ -1,10 +1,11 @@
 // Based on Lugo — Copyright (c) 2024 Renilson Medeiros — MIT License
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { FileWarning, Loader2, Download, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
+import { resolverPdfHref, revogarSeBlob } from "@/lib/pdfResponse";
 
 interface Comprovante {
   mes_referencia: string;
@@ -62,12 +63,18 @@ export default function NotificacaoExtrajudicialBtn(p: Props) {
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error);
-      setPdfUrl(json.pdfUrl);
+      // pdfUrl vem "" quando o upload ao Storage falha; nesse caso a rota
+      // devolve o PDF em base64.
+      const href = resolverPdfHref(json);
+      if (!href) throw new Error("O PDF foi gerado mas não pôde ser entregue.");
+      setPdfUrl(prev => { revogarSeBlob(prev); return href; });
       toast.success("Notificação gerada!");
     } catch (e: any) {
       toast.error("Erro ao gerar PDF", { description: e.message });
     } finally { setLoading(false); }
   }
+
+  useEffect(() => () => { revogarSeBlob(pdfUrl); }, [pdfUrl]);
 
   return (
     <>
