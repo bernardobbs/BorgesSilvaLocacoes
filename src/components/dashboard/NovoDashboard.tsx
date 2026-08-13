@@ -48,7 +48,7 @@ export default function NovoDashboard({ inquilinos, compMes, imoveis, acordos, n
   /* ── Financeiro do mês ── */
   const financeiro = useMemo(() => {
     let recebido = 0, aberto = 0;
-    const totalMensal = inquilinos.reduce((s,i)=>s+(i.valor_aluguel||0), 0);
+    const totalMensal = inquilinos.reduce((s,i)=>s+(Number(i.valor_aluguel)||0), 0);
 
     compMes.forEach((c:any) => {
       if (c.situation === "billed") recebido += c.valor||0;
