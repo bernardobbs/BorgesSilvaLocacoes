@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
 
     const parsed = bodySchema.safeParse(await req.json());
     if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
-    const { inquilino_id, estagio, dias_atraso, valor_total, meses_pendentes } = parsed.data;
+    const { inquilino_id, estagio = 1, dias_atraso, valor_total, meses_pendentes } = parsed.data;
 
     if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
       return NextResponse.json({ skipped: true, reason: "Gmail não configurado" });
