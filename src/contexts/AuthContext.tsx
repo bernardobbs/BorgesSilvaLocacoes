@@ -36,29 +36,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // INIT + AUTH LISTENER
   useEffect(() => {
-    const init = async () => {
-      try {
-        const { data, error } = await supabase.auth.getSession();
-        if (error || !data.session?.user) return;
-
-        setUser(data.session.user);
-        await loadProfile(data.session.user.id);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    init();
-
-    // Verificador proativo de sessão (roda a cada 10 minutos)
-    // Isso evita que o token expire enquanto o usuário preenche formulários longos
-    const sessionCheckInterval = setInterval(async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        console.debug('[Auth] Sessão validada/renovada proativamente');
-      }
-    }, 10 * 60 * 1000);
-
+    // onAuthStateChange fires immediately with INITIAL_SESSION on subscribe,
+    // so it is the single source of truth for the loading state.
+    // A separate init() that also sets loading=false would race with it and
+    // briefly show "Usuário" before the profile arrives.
     const { data: listener } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         const currentUser = session?.user || null;
@@ -73,6 +54,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setLoading(false);
       }
     );
+
+    // Verificador proativo de sessão (roda a cada 10 minutos)
+    const sessionCheckInterval = setInterval(async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        console.debug('[Auth] Sessão validada/renovada proativamente');
+      }
+    }, 10 * 60 * 1000);
 
     return () => {
       clearInterval(sessionCheckInterval);

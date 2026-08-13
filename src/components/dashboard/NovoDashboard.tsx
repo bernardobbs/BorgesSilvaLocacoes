@@ -49,7 +49,7 @@ export default function NovoDashboard({ inquilinos, compMes, imoveis, acordos, n
   /* ── Financeiro do mês ── */
   const financeiro = useMemo(() => {
     let recebido = 0, aberto = 0, inadimplente = 0;
-    const totalMensal = inquilinos.reduce((s,i)=>s+(i.valor_aluguel||0), 0);
+    const totalMensal = inquilinos.reduce((s,i)=>s+(Number(i.valor_aluguel)||0), 0);
 
     compMes.forEach((c:any) => {
       const t = (c.valor||0)+(c.valor_multa||0)+(c.valor_juros||0);
@@ -66,7 +66,7 @@ export default function NovoDashboard({ inquilinos, compMes, imoveis, acordos, n
       const inq = inquilinos.find(i => i.id === row.id);
       const telefone = inq?.telefone || "";
       const dias = row.dias_atraso_maximo;
-      const total = row.valor_total_vencido;
+      const total = Number(row.valor_total_vencido) || 0;
       const parcelas = row.parcelas_vencidas;
       const im = { titulo: row.titulo };
       const msg = encodeURIComponent(
@@ -156,7 +156,7 @@ export default function NovoDashboard({ inquilinos, compMes, imoveis, acordos, n
           { label:"Total a receber", val:fmtBRL(financeiro.totalMensal), sub:`${inquilinos.length} contratos ativos`, cls:"" },
           { label:"Recebido", val:fmtBRL(financeiro.recebido), sub:`${pct(financeiro.recebido,financeiro.totalMensal)}% do mês`, cls:"text-green-600 dark:text-green-400" },
           { label:"A vencer", val:fmtBRL(financeiro.aberto), sub:"em aberto", cls:"text-yellow-600 dark:text-yellow-400" },
-          { label:"Inadimplente", val:fmtBRL(inadimplentesDB.reduce((s:number,r:any)=>s+(r.valor_total_vencido||0),0)||financeiro.inadimplente), sub:`${inadimplentes.length} inquilino${inadimplentes.length!==1?"s":""}`, cls:"text-red-600 dark:text-red-400" },
+          { label:"Inadimplente", val:fmtBRL(inadimplentesDB.reduce((s:number,r:any)=>s+(Number(r.valor_total_vencido)||0),0)||financeiro.inadimplente), sub:`${inadimplentes.length} inquilino${inadimplentes.length!==1?"s":""}`, cls:"text-red-600 dark:text-red-400" },
         ].map(({label,val,sub,cls})=>(
           <div key={label} className="bg-muted rounded-lg p-3">
             <p className="text-xs text-muted-foreground mb-1">{label}</p>
