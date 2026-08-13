@@ -315,7 +315,7 @@ const TenantCard = memo(({ tenant, index, onTerminate, formatarCPF, formatarTele
                   <Link href={`/dashboard/inquilinos/${tenant.id}`} className="hover:text-primary transition-colors">
                     <h3 className="font-display font-semibold">{tenant.nome_completo}</h3>
                   </Link>
-                  {score && tenant.status === 'ativo' && <ScoreBadge score={score.score} scoreLabel={score.score_label} totalParcelas={score.total_meses} pagas={score.pagos_em_dia} vencidas={score.vencidos} totalNotificacoes={score.total_notificacoes} totalAcordos={score.total_acordos} pontos={score.pontos} size="sm" />}
+                  {score && tenant.status === 'ativo' && <ScoreBadge score={score.score} scoreLabel={score.score_label} totalParcelas={score.total_meses} pagas={score.pagos_em_dia} pagasEmAtraso={score.pagos_em_atraso} vencidas={score.vencidos} diasAtrasoMaximo={score.dias_atraso_maximo} totalNotificacoes={score.total_notificacoes} totalAcordos={score.total_acordos} pontos={score.pontos} size="sm" />}
                   {tenant.status === 'inativo' && (tenant as any).data_desocupacao && (
                     <span className="text-xs text-muted-foreground">
                       Saiu em {(tenant as any).data_desocupacao.split('-').reverse().join('/')}

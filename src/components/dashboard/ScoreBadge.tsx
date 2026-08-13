@@ -8,7 +8,9 @@ interface ScoreBadgeProps {
   scoreLabel?: string;
   totalParcelas?: number;
   pagas?: number;
+  pagasEmAtraso?: number;
   vencidas?: number;
+  diasAtrasoMaximo?: number;
   totalNotificacoes?: number;
   totalAcordos?: number;
   pontos?: number;
@@ -23,7 +25,7 @@ const SCORE_CONFIG = {
   5: { stars: 5, label: "Excelente",  color: "text-green-500",  bg: "bg-green-50 border-green-200" },
 };
 
-export function ScoreBadge({ score, scoreLabel, totalParcelas, pagas, vencidas, totalNotificacoes, totalAcordos, pontos, size = "sm" }: ScoreBadgeProps) {
+export function ScoreBadge({ score, scoreLabel, totalParcelas, pagas, pagasEmAtraso, vencidas, diasAtrasoMaximo, totalNotificacoes, totalAcordos, pontos, size = "sm" }: ScoreBadgeProps) {
   if (score === null || score === undefined) {
     return (
       <span className="text-xs text-muted-foreground italic">sem histórico</span>
@@ -49,9 +51,11 @@ export function ScoreBadge({ score, scoreLabel, totalParcelas, pagas, vencidas, 
         <TooltipContent side="top" className="text-xs space-y-1 max-w-[220px]">
           <p className="font-medium">{scoreLabel || cfg.label}</p>
           {pontos !== undefined && <p className="text-muted-foreground">Pontuação: {pontos}/100</p>}
-          {totalParcelas !== undefined && <p>Meses no histórico: {totalParcelas}</p>}
+          {totalParcelas !== undefined && <p>Meses de contrato vencidos: {totalParcelas}</p>}
           {pagas !== undefined && pagas > 0 && <p className="text-green-600">✓ Pagos em dia: {pagas}</p>}
-          {vencidas !== undefined && vencidas > 0 && <p className="text-red-600">✗ Vencidos: {vencidas}</p>}
+          {pagasEmAtraso !== undefined && pagasEmAtraso > 0 && <p className="text-orange-600">⏱ Pagos com atraso: {pagasEmAtraso}</p>}
+          {vencidas !== undefined && vencidas > 0 && <p className="text-red-600">✗ Em aberto: {vencidas}</p>}
+          {diasAtrasoMaximo !== undefined && diasAtrasoMaximo > 0 && <p className="text-red-600">Maior atraso: {diasAtrasoMaximo} dias</p>}
           {totalNotificacoes !== undefined && totalNotificacoes > 0 && <p className="text-orange-500">📩 Cobranças: {totalNotificacoes}</p>}
           {totalAcordos !== undefined && totalAcordos > 0 && <p className="text-blue-500">🤝 Acordos: {totalAcordos}</p>}
         </TooltipContent>

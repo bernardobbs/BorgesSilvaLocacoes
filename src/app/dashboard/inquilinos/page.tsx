@@ -49,10 +49,13 @@ export default async function TenantsListPage() {
             : (item.imoveis || null)
     }));
 
-    // Buscar scores
+    // Buscar scores. O score deriva de v_parcelas_devidas, então reflete os
+    // meses realmente em aberto — não só os comprovantes existentes.
+    // Views não aplicam RLS, daí o filtro explícito por proprietário.
     const { data: scores } = await supabase
         .from('score_inquilinos')
-        .select('inquilino_id, score, score_label, pontos, total_meses, pagos_em_dia, vencidos, total_notificacoes, total_acordos');
+        .select('inquilino_id, score, score_label, pontos, total_meses, pagos_em_dia, pagos_em_atraso, vencidos, dias_atraso_maximo, total_notificacoes, total_acordos')
+        .eq('proprietario_id', FAMILY_OWNER_ID);
 
     const scoresMap = Object.fromEntries(
         (scores || []).map((s: any) => [s.inquilino_id, s])
