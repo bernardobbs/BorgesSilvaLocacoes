@@ -13,6 +13,7 @@ import { User, Phone, Mail, Building2, Calendar, FileText, Edit, UserMinus, Arro
 import EncerrarContratoModal from "@/components/dashboard/EncerrarContratoModal";
 import { useFormFormatting } from "@/lib/hooks/useFormFormatting";
 import { createClient } from "@/lib/supabase/client";
+import { abrirPdf } from "@/lib/pdfResponse";
 
 function fmtV(v: number) { return (v||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"}); }
 function fmtD(iso: string|null) { if(!iso)return"—"; const[y,m,d]=iso.split("-"); return`${d}/${m}/${y}`; }
@@ -85,7 +86,7 @@ export default function TenantDetailsClient({ tenant, historicoPag, historicoNot
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error);
-      window.open(json.pdfUrl, "_blank");
+      abrirPdf(json);
       toast.success("Contrato gerado!");
     } catch (e: any) { toast.error("Erro ao gerar contrato", { description: e.message }); }
     finally { setGerandoContrato(false); }

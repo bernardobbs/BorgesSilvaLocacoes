@@ -9,6 +9,7 @@ import Link from "next/link";
 import { ArrowLeft, FileWarning, Download, ExternalLink, Loader2, ChevronDown, ChevronUp, Phone, Mail, Building2 } from "lucide-react";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
+import { abrirPdf, resolverPdfHref, revogarSeBlob } from "@/lib/pdfResponse";
 
 function fmtBRL(v:number){return(v||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});}
 function fmtData(iso:string|null){if(!iso)return"—";const[y,m,d]=iso.split("-");return`${d}/${m}/${y}`;}
@@ -49,7 +50,10 @@ export default function InativosClient({ inativos, comprovantesMap, notificacoes
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error);
-      setPdfUrls(p => ({...p, [inquilino_id]: json.pdfUrl}));
+      // pdfUrl vem "" quando o upload ao Storage falha; a rota devolve base64.
+      const href = resolverPdfHref(json);
+      if (!href) throw new Error("O dossiê foi gerado mas não pôde ser entregue.");
+      setPdfUrls(p => { revogarSeBlob(p[inquilino_id]); return {...p, [inquilino_id]: href}; });
       toast.success("Dossiê gerado!", { description:"PDF completo pronto para enviar ao advogado." });
     } catch(e:any) {
       toast.error("Erro ao gerar dossiê", { description: e.message });
@@ -65,7 +69,7 @@ export default function InativosClient({ inativos, comprovantesMap, notificacoes
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error);
-      window.open(json.pdfUrl, "_blank");
+      abrirPdf(json);
       toast.success("PDF para Correios gerado!");
     } catch(e:any) { toast.error("Erro ao gerar PDF", { description: e.message }); }
     finally { setGerandoCorreios(null); }
