@@ -559,12 +559,18 @@ export function ConfigLocadorSection() {
   async function salvar() {
     setSalvando(true);
     try {
-      const updates = Object.entries(config).map(([chave, valor]) =>
-        supabase.from("config_sistema").upsert({ chave, valor }, { onConflict: "chave" })
-      );
-      await Promise.all(updates);
+      const rows = Object.entries(config).map(([chave, valor]) => ({ chave, valor }));
+      const { error } = await supabase
+        .from("config_sistema")
+        .upsert(rows, { onConflict: "chave" });
+      if (error) throw error;
       toast.success("Dados do locador salvos!");
-    } catch { toast.error("Erro ao salvar"); }
+    } catch (e: any) {
+      console.error("Erro ao salvar config do locador:", e);
+      toast.error("Erro ao salvar", {
+        description: e?.message || "Verifique sua conexão e se você está logado.",
+      });
+    }
     finally { setSalvando(false); }
   }
 

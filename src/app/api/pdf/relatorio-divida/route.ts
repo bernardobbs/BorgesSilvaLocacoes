@@ -1,10 +1,22 @@
 // Based on Lugo — Copyright (c) 2024 Renilson Medeiros — MIT License
 import { NextRequest, NextResponse } from "next/server";
-import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
+import { createClient } from "@/lib/supabase/server";
+import { FAMILY_OWNER_ID } from "@/lib/family";
 import jsPDF from "jspdf";
+import { z } from "zod";
 
 export const dynamic = "force-dynamic";
+
+const schema = z.object({
+  inquilino_id: z.string().uuid(),
+  imovel_id: z.string().uuid(),
+  // Campos suplementares (não financeiros) que o usuário preenche no formulário
+  danos: z.number().min(0).optional(),
+  dano_descricao: z.string().max(500).optional(),
+  garantia_executada: z.number().min(0).optional(),
+  garantia_obs: z.string().max(500).optional(),
+  obs: z.string().max(1000).optional(),
+});
 
 function fmtBRL(v: number) { return v.toLocaleString("pt-BR",{style:"currency",currency:"BRL"}); }
 function fmtData(iso: string|null) {
@@ -24,24 +36,41 @@ function dataExtenso(d: Date) {
 
 export async function POST(request: NextRequest) {
   try {
-    const cookieStore = await cookies();
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      { cookies: { getAll: () => cookieStore.getAll(), setAll: (c) => c.forEach(({ name, value, options }) => cookieStore.set(name, value, options)) } }
-    );
+    const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
 
-    const {
-      inquilino_id, imovel_id, nome_inquilino, doc_inquilino,
-      imovel_titulo, imovel_endereco,
-      data_inicio, data_desocupacao, motivo_encerramento,
-      comprovantes, divida_total, divida_liquida,
-      danos, dano_descricao,
-      garantia_executada, garantia_obs,
-      obs,
-    } = await request.json();
+    const parsed = schema.safeParse(await request.json());
+    if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
+    const { inquilino_id, imovel_id, danos, dano_descricao, garantia_executada, garantia_obs, obs } = parsed.data;
+
+    // Verificar ownership do imóvel
+    const { data: imovel } = await supabase.from("imoveis")
+      .select("id, titulo, endereco_rua, endereco_numero, endereco_bairro, endereco_cidade, endereco_estado")
+      .eq("id", imovel_id)
+      .eq("proprietario_id", FAMILY_OWNER_ID)
+      .single();
+    if (!imovel) return NextResponse.json({ error: "Imóvel não encontrado ou sem permissão" }, { status: 403 });
+
+    // Buscar dados do inquilino
+    const { data: inq } = await supabase.from("inquilinos")
+      .select("nome_completo, cpf, cnpj, data_inicio, data_encerramento, motivo_encerramento")
+      .eq("id", inquilino_id)
+      .eq("imovel_id", imovel_id)
+      .single();
+    if (!inq) return NextResponse.json({ error: "Inquilino não encontrado" }, { status: 404 });
+
+    // Buscar comprovantes
+    const { data: comprovantes } = await supabase.from("comprovantes")
+      .select("mes_referencia, valor, valor_multa, valor_juros, situation, data_vencimento, data_pagamento")
+      .eq("inquilino_id", inquilino_id)
+      .eq("imovel_id", imovel_id)
+      .order("mes_referencia");
+
+    const nomeInquilino = inq.nome_completo || "";
+    const docInquilino = inq.cpf || inq.cnpj || "";
+    const imovelTitulo = imovel.titulo || "";
+    const imovelEndereco = [imovel.endereco_rua, imovel.endereco_numero, imovel.endereco_bairro, imovel.endereco_cidade, imovel.endereco_estado].filter(Boolean).join(", ");
 
     const hoje = new Date();
     const doc = new jsPDF();
@@ -75,23 +104,22 @@ export async function POST(request: NextRequest) {
 
     // ── DADOS DO EX-INQUILINO ────────────────────────
     secao("DADOS DO EX-INQUILINO");
-    campo("Nome:", nome_inquilino);
-    campo("CPF/CNPJ:", doc_inquilino || "não informado");
-    campo("Imóvel:", imovel_titulo);
-    campo("Endereço:", imovel_endereco || "não informado");
-    campo("Início:", fmtData(data_inicio));
-    campo("Desocupação:", fmtData(data_desocupacao));
+    campo("Nome:", nomeInquilino);
+    campo("CPF/CNPJ:", docInquilino || "não informado");
+    campo("Imóvel:", imovelTitulo);
+    campo("Endereço:", imovelEndereco || "não informado");
+    campo("Início:", fmtData(inq.data_inicio));
+    campo("Desocupação:", fmtData(inq.data_encerramento));
     const motivoLabels: Record<string,string> = {
       cumprimento:"Cumprimento do contrato", desocupacao_voluntaria:"Desocupação voluntária",
       despejo:"Despejo", acordo:"Acordo", outros:"Outros",
     };
-    campo("Motivo:", motivoLabels[motivo_encerramento] || motivo_encerramento);
+    campo("Motivo:", motivoLabels[inq.motivo_encerramento] || inq.motivo_encerramento || "—");
     y += 6;
 
     // ── HISTÓRICO DE PAGAMENTOS ──────────────────────
     secao("HISTÓRICO DE PARCELAS");
 
-    // Cabeçalho da tabela
     doc.setFont("helvetica","bold"); doc.setFontSize(8); doc.setTextColor(100,100,100);
     doc.text("Referência", L, y);
     doc.text("Vencimento", 65, y);
@@ -102,7 +130,7 @@ export async function POST(request: NextRequest) {
     y += 4; linha(); y += 5;
 
     let totalPago = 0; let totalDevido = 0;
-    comprovantes?.forEach((c: any) => {
+    (comprovantes || []).forEach((c: any) => {
       const base = c.valor || 0;
       const enc = (c.valor_multa||0) + (c.valor_juros||0);
       const total = base + enc;
@@ -136,10 +164,11 @@ export async function POST(request: NextRequest) {
     doc.setTextColor(180,0,0);
     doc.text(fmtBRL(totalDevido), R, y, { align:"right" }); y += 7;
 
-    if (danos > 0) {
+    const danoVal = danos || 0;
+    if (danoVal > 0) {
       doc.setTextColor(180,100,0); doc.setFont("helvetica","normal");
       doc.text("+ Danos ao imóvel:", L, y);
-      doc.text(fmtBRL(danos), R, y, { align:"right" }); y += 5;
+      doc.text(fmtBRL(danoVal), R, y, { align:"right" }); y += 5;
       if (dano_descricao) {
         doc.setFontSize(8); doc.setTextColor(120,80,0);
         const dl=doc.splitTextToSize(`  Descrição: ${dano_descricao}`,W);
@@ -161,10 +190,11 @@ export async function POST(request: NextRequest) {
       y += 2;
     }
 
+    const dividaLiquida = totalDevido + danoVal - garantiaVal;
     linha(); y += 5;
     doc.setFont("helvetica","bold"); doc.setFontSize(11); doc.setTextColor(180,0,0);
     doc.text("DÍVIDA LÍQUIDA A COBRAR:", L, y);
-    doc.text(fmtBRL(divida_liquida || (totalDevido + (danos||0) - garantiaVal)), R, y, { align:"right" });
+    doc.text(fmtBRL(dividaLiquida), R, y, { align:"right" });
     y += 12;
 
     if (obs) {
@@ -191,36 +221,28 @@ export async function POST(request: NextRequest) {
     doc.setFont("helvetica","normal"); doc.setFontSize(8); doc.setTextColor(100,100,100);
     doc.text("Locador / Representante Legal", 105, y+26, { align:"center" });
 
-    // Rodapé
     doc.setFontSize(7); doc.setTextColor(160,160,160);
     doc.text(`Gerado em ${hoje.toLocaleDateString("pt-BR")} às ${hoje.toLocaleTimeString("pt-BR")} · Borges Silva Locações`, 105, 287, { align:"center" });
 
-
-    // Buscar configuração do procurador
-    const { data: cfgData } = await supabase.from("config_sistema")
-      .select("chave, valor")
-      .in("chave", ["locador_nome","locador_cpf_cnpj","procurador_ativo","procurador_nome","procurador_cpf"]);
-    const cfgMap2: Record<string,string> = {};
-    (cfgData||[]).forEach((r:any) => { cfgMap2[r.chave] = r.valor||""; });
-    const temProc = cfgMap2.procurador_ativo === "true" && !!cfgMap2.procurador_nome;
-    const nomeProprietario = cfgMap2.locador_nome || "Borges Silva Locações";
-    const cpfProprietario  = cfgMap2.locador_cpf_cnpj || "";
-    const nomeProcurador   = cfgMap2.procurador_nome || "";
-    const cpfProcurador    = cfgMap2.procurador_cpf  || "";
-
     const pdfBuffer = Buffer.from(doc.output("arraybuffer"));
-    const fileName = `${user.id}/${imovel_id}/encerramentos/${Date.now()}-divida-${nome_inquilino.normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-zA-Z0-9-_]/g,"-").replace(/-+/g,"-").toLowerCase()}.pdf`;
+    const safeName = nomeInquilino.normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^a-zA-Z0-9-_]/g,"-").replace(/-+/g,"-").toLowerCase();
+    const fileName = `${user.id}/${imovel_id}/encerramentos/${Date.now()}-divida-${safeName}.pdf`;
 
-    const { error: uploadError } = await supabase.storage
-      .from("documentos")
-      .upload(fileName, pdfBuffer, { contentType:"application/pdf", upsert:false });
-    if (uploadError) throw uploadError;
+    let pdfUrl = "";
+    try {
+      const { error: uploadError } = await supabase.storage
+        .from("documentos")
+        .upload(fileName, pdfBuffer, { contentType:"application/pdf", upsert:false });
+      if (!uploadError) {
+        const { data: signed } = await supabase.storage.from("documentos").createSignedUrl(fileName, 60*60*24*7);
+        pdfUrl = signed?.signedUrl || "";
+      }
+    } catch { /* Storage falhou — PDF retornado como base64 */ }
 
-    const { data: signed } = await supabase.storage.from("documentos").createSignedUrl(fileName, 60*60*24*7);
-        const publicUrl = signed?.signedUrl || "";
-
-    return NextResponse.json({ success:true, pdfUrl:publicUrl });
+    const pdfBase64 = pdfUrl ? undefined : pdfBuffer.toString("base64");
+    return NextResponse.json({ success: true, pdfUrl, pdfBase64 });
   } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status:500 });
+    console.error("Erro ao gerar relatório de dívida:", e);
+    return NextResponse.json({ error: "Erro ao gerar documento" }, { status: 500 });
   }
 }

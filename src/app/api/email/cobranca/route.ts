@@ -2,27 +2,46 @@
 import { NextRequest, NextResponse } from "next/server";
 import nodemailer from "nodemailer";
 import { createClient } from "@/lib/supabase/server";
+import { FAMILY_OWNER_ID, assertFamilyOwnerConfigured } from "@/lib/family";
+import { checkRateLimit, rateLimitResponse } from "@/lib/rateLimit";
+import { z } from "zod";
 
 function fmtBRL(v: number) { return (v||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"}); }
 function fmtD(iso: string) { if(!iso)return"—"; const[y,m,d]=iso.split("-"); return`${d}/${m}/${y}`; }
 
+const bodySchema = z.object({
+  inquilino_id: z.string().uuid(),
+  estagio: z.number().int().min(1).optional(),
+  dias_atraso: z.number().int().min(0),
+  valor_total: z.number().min(0),
+  meses_pendentes: z.array(z.string()).optional(),
+});
+
 export async function POST(req: NextRequest) {
   try {
-    const { inquilino_id, estagio, dias_atraso, valor_total, meses_pendentes } = await req.json();
+    // Autenticação antes do rate limit para evitar bloqueio de usuários legítimos
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+
+    const ip = req.headers.get("x-forwarded-for") ?? "unknown";
+    if (!checkRateLimit(`email-cobranca:${user.id}:${ip}`, 10, 60_000)) return rateLimitResponse();
+
+    const parsed = bodySchema.safeParse(await req.json());
+    if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
+    const { inquilino_id, estagio = 1, dias_atraso, valor_total, meses_pendentes } = parsed.data;
 
     if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
       return NextResponse.json({ skipped: true, reason: "Gmail não configurado" });
     }
 
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
-
-    // Buscar dados do inquilino
+    // Buscar dados do inquilino com verificação de ownership
     const { data: inq } = await supabase.from("inquilinos")
-      .select("nome_completo, email, cpf, telefone, valor_aluguel, multa_percentual, juros_percentual, imoveis(titulo, endereco_rua, endereco_numero, endereco_cidade)")
+      .select("nome_completo, email, cpf, telefone, valor_aluguel, multa_percentual, juros_percentual, imoveis!inner(titulo, endereco_rua, endereco_numero, endereco_cidade, proprietario_id)")
       .eq("id", inquilino_id).single();
 
+    const im0 = Array.isArray(inq?.imoveis) ? (inq.imoveis as any)[0] : inq?.imoveis as any;
+    if (im0?.proprietario_id !== FAMILY_OWNER_ID) return NextResponse.json({ error: "Não autorizado" }, { status: 403 });
     if (!inq?.email) return NextResponse.json({ skipped: true, reason: "Sem e-mail cadastrado" });
 
     // Buscar config do locador
@@ -31,7 +50,7 @@ export async function POST(req: NextRequest) {
     const cfgMap: Record<string,string> = {};
     (cfg||[]).forEach((r:any) => { cfgMap[r.chave] = r.valor||""; });
 
-    const im = Array.isArray(inq.imoveis) ? (inq.imoveis as any)[0] : inq.imoveis as any;
+    const im = im0;
     const locadorNome = cfgMap.locador_nome || "Borges Silva Locações";
     const gestorNome = cfgMap.procurador_ativo==="true" ? cfgMap.procurador_nome : "";
 
@@ -148,6 +167,6 @@ th:last-child,td:last-child{text-align:right}
     return NextResponse.json({ success: true, to: inq.email });
   } catch (err: any) {
     console.error("Email cobrança error:", err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    console.error("API error:", err); return NextResponse.json({ error: "Erro interno do servidor" }, { status: 500 });
   }
 }

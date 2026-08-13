@@ -2,23 +2,33 @@
 // Rota de assinatura criptográfica de recibos (HMAC-SHA256)
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { FAMILY_OWNER_ID, assertFamilyOwnerConfigured } from "@/lib/family";
 import { gerarReceiptHash, gerarReceiptNumber } from "@/lib/receiptHash";
+import { z } from "zod";
+
+const schema = z.object({ comprovante_id: z.string().uuid() });
 
 export async function POST(req: NextRequest) {
   try {
-    const { comprovante_id } = await req.json();
-    if (!comprovante_id) return NextResponse.json({ error: "comprovante_id obrigatório" }, { status: 400 });
+    const parsed = schema.safeParse(await req.json());
+    if (!parsed.success) return NextResponse.json({ error: "comprovante_id inválido" }, { status: 400 });
+    const { comprovante_id } = parsed.data;
 
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
 
-    // Buscar dados do comprovante
+    // Buscar dados do comprovante + verificar ownership via imovel
     const { data: comp } = await supabase.from("comprovantes")
-      .select("id, imovel_id, inquilino_id, valor, data_pagamento, mes_referencia, receipt_hash, receipt_number")
+      .select("id, imovel_id, inquilino_id, valor, data_pagamento, mes_referencia, receipt_hash, receipt_number, imoveis!inner(proprietario_id)")
       .eq("id", comprovante_id).single();
 
     if (!comp) return NextResponse.json({ error: "Comprovante não encontrado" }, { status: 404 });
+
+    const imovelComp = Array.isArray((comp as any).imoveis) ? (comp as any).imoveis[0] : (comp as any).imoveis;
+    if (imovelComp?.proprietario_id !== FAMILY_OWNER_ID) {
+      return NextResponse.json({ error: "Acesso negado" }, { status: 403 });
+    }
 
     // Se já tem hash — não recalcular (imutável)
     if (comp.receipt_hash) {
@@ -30,14 +40,11 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Gerar número sequencial do recibo
-    const { count } = await supabase.from("comprovantes")
-      .select("*", { count: "exact", head: true })
-      .eq("mes_referencia", comp.mes_referencia)
-      .not("receipt_hash", "is", null);
-
-    const sequencia = (count || 0) + 1;
-    const receiptNumber = gerarReceiptNumber(comp.mes_referencia, sequencia);
+    // Gerar número sequencial atômico (evita race condition com COUNT+1)
+    const mesPrefixo = comp.mes_referencia.slice(0, 7); // "YYYY-MM"
+    const { data: seqData, error: seqErr } = await supabase.rpc("next_receipt_seq", { p_mes: mesPrefixo });
+    if (seqErr) throw new Error(`Erro ao gerar número do recibo: ${seqErr.message}`);
+    const receiptNumber = gerarReceiptNumber(comp.mes_referencia, seqData as number);
 
     // Gerar hash HMAC-SHA256
     const hash = gerarReceiptHash({
@@ -72,19 +79,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true, hash, receiptNumber });
   } catch (err: any) {
     console.error("Erro ao assinar recibo:", err);
-
-    // Registrar falha na auditoria
-    try {
-      const supabase = await createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      await supabase.from("auditoria_recibos").insert({
-        comprovante_id: req.body ? (await req.json().catch(() => ({}))).comprovante_id : null,
-        operacao: "falha",
-        usuario_id: user?.id,
-        detalhe: err.message,
-      });
-    } catch {}
-
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return NextResponse.json({ error: "Erro interno do servidor" }, { status: 500 });
   }
 }

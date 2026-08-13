@@ -1,7 +1,11 @@
 // Based on Lugo — Copyright (c) 2024 Renilson Medeiros — MIT License
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { FAMILY_OWNER_ID } from "@/lib/family";
 import { jsPDF } from "jspdf";
+import { z } from "zod";
+
+const schema = z.object({ inquilino_id: z.string().uuid() });
 
 function fmtBRL(v:number){return(v||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});}
 function fmtD(iso:string){if(!iso)return"--";const[y,m,d]=iso.split("-");return`${d}/${m}/${y}`;}
@@ -9,15 +13,21 @@ function dataExtenso(d:Date){const M=["janeiro","fevereiro","marco","abril","mai
 
 export async function POST(req: NextRequest) {
   try {
-    const { inquilino_id } = await req.json();
+    const parsed = schema.safeParse(await req.json());
+    if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
+    const { inquilino_id } = parsed.data;
+
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Nao autorizado" }, { status: 401 });
 
     const { data: inq } = await supabase.from("inquilinos")
-      .select("*, imoveis(titulo, endereco_rua, endereco_numero, endereco_bairro, endereco_cidade, endereco_estado, endereco_cep)")
+      .select("*, imoveis!inner(id, proprietario_id, titulo, endereco_rua, endereco_numero, endereco_bairro, endereco_cidade, endereco_estado, endereco_cep)")
       .eq("id", inquilino_id).single();
     if (!inq) return NextResponse.json({ error: "Inquilino nao encontrado" }, { status: 404 });
+
+    const imCheck = Array.isArray(inq.imoveis) ? inq.imoveis[0] : inq.imoveis as any;
+    if (imCheck?.proprietario_id !== FAMILY_OWNER_ID) return NextResponse.json({ error: "Acesso negado" }, { status: 403 });
 
     const { data: comps } = await supabase.from("comprovantes")
       .select("mes_referencia, valor, valor_multa, valor_juros, situation, data_vencimento")
@@ -157,6 +167,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true, pdfUrl: urlData?.signedUrl });
   } catch(err:any){
     console.error(err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    console.error("API error:", err); return NextResponse.json({ error: "Erro interno do servidor" }, { status: 500 });
   }
 }

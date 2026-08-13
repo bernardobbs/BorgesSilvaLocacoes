@@ -48,15 +48,19 @@ export default function NovoDashboard({ inquilinos, compMes, imoveis, acordos, n
 
   /* ── Financeiro do mês ── */
   const financeiro = useMemo(() => {
-    let recebido = 0, aberto = 0, inadimplente = 0;
-    const totalMensal = inquilinos.reduce((s,i)=>s+(i.valor_aluguel||0), 0);
+    let recebido = 0, aberto = 0;
+    const totalMensal = inquilinos.reduce((s,i)=>s+(Number(i.valor_aluguel)||0), 0);
 
     compMes.forEach((c:any) => {
-      const t = (c.valor||0)+(c.valor_multa||0)+(c.valor_juros||0);
       if (c.situation === "billed") recebido += c.valor||0;
-      else if (c.situation === "expired") inadimplente += t;
       else aberto += c.valor||0;
     });
+
+    // Inadimplente: soma dos comprovantes vencidos (situation=expired) em todos os meses
+    const inadimplente = compMes
+      .filter((c: any) => c.situation === 'expired')
+      .reduce((s: number, c: any) => s + (Number(c.valor)||0) + (Number(c.valor_multa)||0) + (Number(c.valor_juros)||0), 0);
+
     return { totalMensal, recebido, aberto, inadimplente };
   }, [inquilinos, compMes]);
 
@@ -64,10 +68,11 @@ export default function NovoDashboard({ inquilinos, compMes, imoveis, acordos, n
   const inadimplentes = useMemo(() => {
     return inadimplentesDB.map((row: any) => {
       const inq = inquilinos.find(i => i.id === row.id);
-      const telefone = inq?.telefone || "";
-      const dias = row.dias_atraso_maximo;
-      const total = row.valor_total_vencido;
-      const parcelas = row.parcelas_vencidas;
+      const telefone = row.telefone || inq?.telefone || "";
+      // Colunas numeric do Postgres chegam como string no JSON do PostgREST
+      const dias = Number(row.dias_atraso_maximo) || 0;
+      const total = Number(row.valor_total_vencido) || 0;
+      const parcelas = Number(row.parcelas_vencidas) || 0;
       const im = { titulo: row.titulo };
       const msg = encodeURIComponent(
         `Olá, *${row.nome_completo}*!\n\nVocê possui *${parcelas} parcela${parcelas!==1?"s":""}* de aluguel em aberto no imóvel *${row.titulo}*.\n\n💰 Total em atraso: *${fmtBRL(total)}*\nMaior atraso: *${dias} dias*\n\n*Borges Silva Locações*`
@@ -91,12 +96,13 @@ export default function NovoDashboard({ inquilinos, compMes, imoveis, acordos, n
   /* ── Próximos vencimentos (7 dias) ── */
   const proximos = useMemo(() => {
     const items: any[] = [];
+    const hojeNorm = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
     const limite = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate()+7);
 
     inquilinos.forEach(inq => {
       const im = Array.isArray(inq.imoveis)?inq.imoveis[0]:inq.imoveis;
       const venc = new Date(hoje.getFullYear(), hoje.getMonth(), inq.dia_vencimento);
-      if (venc >= hoje && venc <= limite) {
+      if (venc >= hojeNorm && venc <= limite) {
         const comp = compMes.find(c=>c.inquilino_id===inq.id);
         if (!comp || comp.situation !== "billed") {
           const dias = Math.floor((venc.getTime()-hoje.getTime())/86400000);

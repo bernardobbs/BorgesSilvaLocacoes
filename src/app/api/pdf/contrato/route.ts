@@ -1,7 +1,11 @@
 // Based on Lugo — Copyright (c) 2024 Renilson Medeiros — MIT License
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { FAMILY_OWNER_ID } from "@/lib/family";
 import { jsPDF } from "jspdf";
+import { z } from "zod";
+
+const schema = z.object({ inquilino_id: z.string().uuid() });
 
 function fmtBRL(v:number){return(v||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});}
 function fmtD(iso:string|null){if(!iso)return"___/___/______";const[y,m,d]=iso.split("-");return`${d}/${m}/${y}`;}
@@ -11,17 +15,23 @@ function nomeMes(n:number){const M=["janeiro","fevereiro","março","abril","maio
 
 export async function POST(req: NextRequest) {
   try {
-    const { inquilino_id } = await req.json();
+    const parsed = schema.safeParse(await req.json());
+    if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
+    const { inquilino_id } = parsed.data;
+
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
 
     const { data: inq } = await supabase.from("inquilinos").select(`
-      *, imoveis(titulo, tipo, categoria, endereco_rua, endereco_numero, endereco_complemento,
+      *, imoveis!inner(id, proprietario_id, titulo, tipo, categoria, endereco_rua, endereco_numero, endereco_complemento,
         endereco_bairro, endereco_cidade, endereco_estado, endereco_cep,
         locador_nome, locador_cpf_cnpj, locador_telefone, do_center, numero_unidade)
     `).eq("id", inquilino_id).single();
     if (!inq) return NextResponse.json({ error: "Inquilino não encontrado" }, { status: 404 });
+
+    const imCheck = Array.isArray(inq.imoveis) ? inq.imoveis[0] : inq.imoveis as any;
+    if (imCheck?.proprietario_id !== FAMILY_OWNER_ID) return NextResponse.json({ error: "Acesso negado" }, { status: 403 });
 
     const { data: cfg } = await supabase.from("config_sistema").select("chave, valor")
       .in("chave", ["locador_nome","locador_cpf_cnpj","locador_endereco","locador_telefone","locador_email","procurador_ativo","procurador_nome","procurador_cpf"]);
@@ -223,6 +233,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true, pdfUrl: urlData?.signedUrl });
   } catch (err: any) {
     console.error("Contrato error:", err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    console.error("API error:", err); return NextResponse.json({ error: "Erro interno do servidor" }, { status: 500 });
   }
 }

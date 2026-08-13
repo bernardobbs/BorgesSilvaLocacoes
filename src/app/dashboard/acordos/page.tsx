@@ -6,8 +6,8 @@ import { FAMILY_OWNER_ID } from '@/lib/family';
 
 export default async function AcordosPage() {
   const supabase = await createClient();
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) redirect("/login");
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
 
   const { data: acordos } = await supabase
     .from("acordos")

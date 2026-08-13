@@ -6,9 +6,9 @@ import { redirect } from "next/navigation";
 export default async function SettingsPage() {
     const supabase = await createClient();
 
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { user } } = await supabase.auth.getUser();
 
-    if (!session) {
+    if (!user) {
         redirect("/login");
     }
 
@@ -16,7 +16,7 @@ export default async function SettingsPage() {
     const { data: profile } = await supabase
         .from('profiles')
         .select('*')
-        .eq('id', session.user.id)
+        .eq('id', user.id)
         .single();
 
     return (

@@ -1,25 +1,44 @@
 // Based on Lugo — Copyright (c) 2024 Renilson Medeiros — MIT License
 import { NextRequest, NextResponse } from "next/server";
-import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
+import { createClient } from "@/lib/supabase/server";
+import { FAMILY_OWNER_ID, assertFamilyOwnerConfigured } from "@/lib/family";
+import { z } from "zod";
+
+const acordoSchema = z.object({
+  inquilino_id: z.string().uuid(),
+  imovel_id: z.string().uuid(),
+  valor_original: z.number().positive(),
+  valor_acordo: z.number().positive(),
+  desconto: z.number().min(0),
+  num_parcelas: z.number().int().min(1).max(60),
+  valor_parcela: z.number().positive(),
+  primeira_parcela: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  meses_cobertos: z.array(z.string()).optional(),
+  observacoes: z.string().max(1000).nullable().optional(),
+});
 
 export async function POST(request: NextRequest) {
   try {
-    const cookieStore = await cookies();
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      { cookies: { getAll: () => cookieStore.getAll(), setAll: (c) => c.forEach(({ name, value, options }) => cookieStore.set(name, value, options)) } }
-    );
-
+    const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
 
+    const parsed = acordoSchema.safeParse(await request.json());
+    if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
     const {
       inquilino_id, imovel_id, valor_original, valor_acordo,
       desconto, num_parcelas, valor_parcela, primeira_parcela,
       meses_cobertos, observacoes
-    } = await request.json();
+    } = parsed.data;
+
+    // Verificar ownership do imóvel e que o inquilino pertence a esse imóvel
+    const { data: imovelCheck } = await supabase.from("imoveis")
+      .select("id").eq("id", imovel_id).eq("proprietario_id", FAMILY_OWNER_ID).single();
+    if (!imovelCheck) return NextResponse.json({ error: "Não autorizado" }, { status: 403 });
+
+    const { data: inquilinoCheck } = await supabase.from("inquilinos")
+      .select("id").eq("id", inquilino_id).eq("imovel_id", imovel_id).single();
+    if (!inquilinoCheck) return NextResponse.json({ error: "Não autorizado" }, { status: 403 });
 
     // Criar o acordo
     const { data: acordo, error: eAcordo } = await supabase
@@ -63,6 +82,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true, acordo_id: acordo.id });
   } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status: 500 });
+    console.error("API error:", e); return NextResponse.json({ error: "Erro interno do servidor" }, { status: 500 });
   }
 }

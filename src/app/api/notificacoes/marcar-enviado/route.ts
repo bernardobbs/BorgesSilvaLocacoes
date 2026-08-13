@@ -1,26 +1,37 @@
 // Based on Lugo — Copyright (c) 2024 Renilson Medeiros — MIT License
 import { NextRequest, NextResponse } from "next/server";
-import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
+import { createClient } from "@/lib/supabase/server";
+import { FAMILY_OWNER_ID, assertFamilyOwnerConfigured } from "@/lib/family";
+import { z } from "zod";
+
+const schema = z.object({
+  inquilino_id: z.string().uuid(),
+  imovel_id: z.string().uuid(),
+  comprovante_id: z.string().uuid().nullable().optional(),
+  estagio: z.number().int().min(1).max(5),
+  config_id: z.string().uuid().nullable().optional(),
+  dias_atraso: z.number().int().min(0),
+  valor_total: z.number().min(0),
+  mes_referencia: z.string().regex(/^\d{4}-\d{2}(-\d{2})?$/).nullable().optional(),
+});
 
 export async function POST(request: NextRequest) {
   try {
-    const cookieStore = await cookies();
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      { cookies: { getAll: () => cookieStore.getAll(), setAll: (c) => c.forEach(({ name, value, options }) => cookieStore.set(name, value, options)) } }
-    );
-
+    const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
 
-    const { inquilino_id, comprovante_id, imovel_id, estagio, config_id, dias_atraso, valor_total, mes_referencia } = await request.json();
+    const parsed = schema.safeParse(await request.json());
+    if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
+    const { inquilino_id, comprovante_id, imovel_id, estagio, config_id, dias_atraso, valor_total, mes_referencia } = parsed.data;
+
+    // Verificar ownership do imóvel
+    const { data: imovelCheck } = await supabase.from("imoveis")
+      .select("id").eq("id", imovel_id).eq("proprietario_id", FAMILY_OWNER_ID).single();
+    if (!imovelCheck) return NextResponse.json({ error: "Não autorizado" }, { status: 403 });
 
     // Garantir formato correto da data
-    const mesRef = mes_referencia
-      ? String(mes_referencia).slice(0, 10)  // YYYY-MM-DD
-      : null;
+    const mesRef = mes_referencia ? String(mes_referencia).slice(0, 10) : null;
 
     const { error: insertError } = await supabase.from("notificacoes_cobranca").insert({
       inquilino_id,
@@ -36,11 +47,11 @@ export async function POST(request: NextRequest) {
 
     if (insertError) {
       console.error("Erro ao salvar notificação:", insertError);
-      return NextResponse.json({ error: insertError.message }, { status: 500 });
+      return NextResponse.json({ error: "Erro ao registrar notificação" }, { status: 500 });
     }
 
     return NextResponse.json({ success: true });
   } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status: 500 });
+    console.error("API error:", e); return NextResponse.json({ error: "Erro interno do servidor" }, { status: 500 });
   }
 }

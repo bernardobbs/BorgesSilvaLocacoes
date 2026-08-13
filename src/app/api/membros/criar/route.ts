@@ -1,8 +1,16 @@
 // Based on Lugo — Copyright (c) 2024 Renilson Medeiros — MIT License
 import { NextRequest, NextResponse } from "next/server";
-import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
+import { createClient } from "@/lib/supabase/server";
 import { createClient as createAdminClient } from "@supabase/supabase-js";
+import { sanitizeSupabaseKey } from "@/lib/supabase/admin";
+import { z } from "zod";
+
+const criarMembroSchema = z.object({
+  email: z.string().email().max(254),
+  nome_completo: z.string().min(1).max(200),
+  password: z.string().min(8).max(128),
+  role: z.enum(["operador", "admin"]).optional(),
+});
 
 // Detecta caracteres não-ASCII que podem quebrar headers HTTP
 function sanitizeAscii(s: string): string {
@@ -11,29 +19,20 @@ function sanitizeAscii(s: string): string {
 
 export async function POST(request: NextRequest) {
   try {
-    const cookieStore = await cookies();
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      { cookies: { getAll: () => cookieStore.getAll(), setAll: (c) => c.forEach(({ name, value, options }) => cookieStore.set(name, value, options)) } }
-    );
-
+    const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
 
     const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
     if (profile?.role !== "admin") return NextResponse.json({ error: "Apenas administradores podem adicionar membros" }, { status: 403 });
 
-    const body = await request.json();
-    let { email, nome_completo, password, role } = body;
-
-    if (!email || !nome_completo || !password) {
-      return NextResponse.json({ error: "Campos obrigatórios faltando" }, { status: 400 });
-    }
+    const parsedBody = criarMembroSchema.safeParse(await request.json());
+    if (!parsedBody.success) return NextResponse.json({ error: parsedBody.error.issues[0].message }, { status: 400 });
+    let { email, nome_completo, password, role } = parsedBody.data;
 
     // Sanitizar email e password: só ASCII permitido (HTTP headers ByteString)
-    const emailLimpo = sanitizeAscii(String(email).trim());
-    const passwordLimpa = sanitizeAscii(String(password));
+    const emailLimpo = sanitizeAscii(email.trim());
+    const passwordLimpa = sanitizeAscii(password);
 
     if (emailLimpo !== email.trim()) {
       return NextResponse.json({
@@ -47,13 +46,14 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // nome_completo pode ter acentos — é só user_metadata, mantém como veio
+    // nome_completo pode ter acentos — é só user_metadata (vai no corpo), mantém como veio
     nome_completo = String(nome_completo).trim();
 
-    const admin = createAdminClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
+    const serviceKey = sanitizeSupabaseKey(process.env.SUPABASE_SERVICE_ROLE_KEY);
+    if (!serviceKey) {
+      return NextResponse.json({ error: "Configuração do servidor incompleta: SUPABASE_SERVICE_ROLE_KEY ausente." }, { status: 500 });
+    }
+    const admin = createAdminClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, serviceKey);
 
     const { data: newUser, error: createError } = await admin.auth.admin.createUser({
       email: emailLimpo,
@@ -68,12 +68,16 @@ export async function POST(request: NextRequest) {
     }
 
     if (newUser.user) {
-      await admin.from("profiles").update({ role: role || "operador", nome_completo }).eq("id", newUser.user.id);
+      const { data: adminProfile } = await supabase.from("profiles").select("family_owner_id").eq("id", user.id).single();
+      const familyOwnerId = adminProfile?.family_owner_id || user.id;
+      await admin.from("profiles")
+        .update({ role: role || "operador", nome_completo, family_owner_id: familyOwnerId })
+        .eq("id", newUser.user.id);
     }
 
     return NextResponse.json({ success: true });
   } catch (e: any) {
     console.error("[membros/criar] caught:", e?.message, e);
-    return NextResponse.json({ error: e?.message || "Erro desconhecido" }, { status: 500 });
+    return NextResponse.json({ error: "Erro interno do servidor" }, { status: 500 });
   }
 }

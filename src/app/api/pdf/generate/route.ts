@@ -1,34 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
+import { createClient } from '@/lib/supabase/server';
 import jsPDF from 'jspdf';
 import { FAMILY_OWNER_ID } from '@/lib/family';
+import { z } from 'zod';
 
 export const dynamic = 'force-dynamic';
 
-interface ReceiptData {
-    referenceMonth: string;
-    referenceYear: string;
-    tenantName: string;
-    tenantCpf: string;
-    propertyName: string;
-    propertyAddress: string;
-    rentValue: string;
-    condoValue?: string;
-    iptuValue?: string;
-    otherValue?: string;
-    totalValue: string;
-    paymentDate: string;
-    observations?: string;
-}
-
-interface RequestBody {
-    data: ReceiptData;
-    userId: string;
-    propertyId: string;
-    tenantId: string;
-    comprovante_id?: string;
-}
+const bodySchema = z.object({
+    userId: z.string().uuid(),
+    propertyId: z.string().uuid(),
+    tenantId: z.string().uuid().optional(),
+    comprovante_id: z.string().uuid().optional(),
+    data: z.object({
+        referenceMonth: z.string().max(2),
+        referenceYear: z.string().max(4),
+        tenantName: z.string().max(500),
+        tenantCpf: z.string().max(20),
+        propertyName: z.string().max(500),
+        propertyAddress: z.string().max(500),
+        rentValue: z.string().max(50),
+        condoValue: z.string().max(50).optional(),
+        iptuValue: z.string().max(50).optional(),
+        otherValue: z.string().max(50).optional(),
+        totalValue: z.string().max(50),
+        paymentDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        observations: z.string().max(500).optional(),
+    }),
+});
 
 const months = [
     "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
@@ -37,27 +35,13 @@ const months = [
 
 export async function POST(request: NextRequest) {
     try {
-        // Criar cliente Supabase autenticado
-        const cookieStore = await cookies();
-        const supabase = createServerClient(
-            process.env.NEXT_PUBLIC_SUPABASE_URL!,
-            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-            {
-                cookies: {
-                    getAll() {
-                        return cookieStore.getAll();
-                    },
-                    setAll(cookiesToSet) {
-                        cookiesToSet.forEach(({ name, value, options }) =>
-                            cookieStore.set(name, value, options)
-                        );
-                    },
-                },
-            }
-        );
+        const supabase = await createClient();
 
-        const body: RequestBody = await request.json();
-        const { data, userId, propertyId, comprovante_id } = body;
+        const parsed = bodySchema.safeParse(await request.json());
+        if (!parsed.success) {
+            return NextResponse.json({ success: false, error: parsed.error.issues[0].message }, { status: 400 });
+        }
+        const { userId, propertyId, comprovante_id, data } = parsed.data;
 
         // 1. Validar autenticação e obter UID real da sessão
         const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -66,17 +50,20 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ success: false, error: 'Não autorizado' }, { status: 401 });
         }
 
-        // Buscar hash de autenticação se comprovante_id fornecido
+        // Buscar hash de autenticação se comprovante_id fornecido (com ownership check)
         let receiptHash: string | null = null;
         let receiptNumber: string | null = null;
         if (comprovante_id) {
             const { data: comp } = await supabase
                 .from('comprovantes')
-                .select('receipt_hash, receipt_number')
+                .select('receipt_hash, receipt_number, imoveis!inner(proprietario_id)')
                 .eq('id', comprovante_id)
                 .maybeSingle();
-            receiptHash = comp?.receipt_hash || null;
-            receiptNumber = comp?.receipt_number || null;
+            const compImovel = Array.isArray((comp as any)?.imoveis) ? (comp as any).imoveis[0] : (comp as any)?.imoveis;
+            if (comp && compImovel?.proprietario_id === FAMILY_OWNER_ID) {
+                receiptHash = comp.receipt_hash || null;
+                receiptNumber = comp.receipt_number || null;
+            }
         }
 
         // 2. Blindagem: Validar se o userId do body é o mesmo da sessão (evita Personagem/Spoofing)
@@ -302,7 +289,7 @@ export async function POST(request: NextRequest) {
     } catch (error: any) {
         console.error('Error generating PDF:', error);
         return NextResponse.json(
-            { success: false, error: error.message || 'Failed to generate PDF' },
+            { success: false, error: 'Erro ao gerar documento' },
             { status: 500 }
         );
     }

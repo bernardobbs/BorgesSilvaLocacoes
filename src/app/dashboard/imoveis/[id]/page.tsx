@@ -24,8 +24,8 @@ const STATUS_LABEL: Record<string,string> = {
 export default async function ImovelDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const supabase = await createClient();
   const { id } = await params;
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) redirect("/login");
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
 
   const { data: imovel } = await supabase
     .from("imoveis")

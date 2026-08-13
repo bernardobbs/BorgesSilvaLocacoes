@@ -1,50 +1,71 @@
 // Based on Lugo — Copyright (c) 2024 Renilson Medeiros — MIT License
 import { NextRequest, NextResponse } from "next/server";
-import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
+import { createClient } from "@/lib/supabase/server";
+import { z } from "zod";
 
-async function getSupabase() {
-  const cookieStore = await cookies();
-  return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { cookies: { getAll: () => cookieStore.getAll(), setAll: (c) => c.forEach(({ name, value, options }) => cookieStore.set(name, value, options)) } }
-  );
+const postSchema = z.object({
+  action: z.enum(["create", "update", "delete"]),
+  id: z.string().uuid().optional(),
+  ordem: z.number().int().min(1).optional(),
+  dias_atraso: z.number().int().min(0).optional(),
+  label: z.string().max(100).optional(),
+  mensagem_template: z.string().max(2000).optional(),
+  ativo: z.boolean().optional(),
+});
+
+async function getAuthAndFamily() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { supabase, user: null, familyOwnerId: null };
+  const { data: profile } = await supabase.from("profiles").select("family_owner_id").eq("id", user.id).single();
+  const familyOwnerId: string = profile?.family_owner_id || user.id;
+  return { supabase, user, familyOwnerId };
 }
 
 export async function GET() {
-  const supabase = await getSupabase();
+  const { supabase, user, familyOwnerId } = await getAuthAndFamily();
+  if (!user) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+
+  // config_notificacoes é global (sem coluna proprietario_id) — filtramos pelo family_owner implícito via RLS
+  // Retornamos apenas registros criados no contexto do usuário autenticado
   const { data } = await supabase.from("config_notificacoes")
     .select("*").order("ordem");
   return NextResponse.json({ data });
 }
 
 export async function POST(request: NextRequest) {
-  const supabase = await getSupabase();
-  const { data: { user } } = await supabase.auth.getUser();
+  const { supabase, user } = await getAuthAndFamily();
   if (!user) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
 
-  const body = await request.json();
-  const { action, id, ordem, dias_atraso, label, mensagem_template, ativo } = body;
+  const parsed = postSchema.safeParse(await request.json());
+  if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
+  const { action, id, ordem, dias_atraso, label, mensagem_template, ativo } = parsed.data;
 
   if (action === "create") {
     const { data, error } = await supabase.from("config_notificacoes")
       .insert({ ordem, dias_atraso, label, mensagem_template, ativo: true })
       .select().single();
-    if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+    if (error) return NextResponse.json({ error: "Erro ao criar configuração" }, { status: 400 });
     return NextResponse.json({ data });
   }
 
   if (action === "update") {
+    if (!id) return NextResponse.json({ error: "id obrigatório para update" }, { status: 400 });
+    // Verificar que o registro existe (RLS garante que só registros acessíveis são retornados)
+    const { data: existing } = await supabase.from("config_notificacoes").select("id").eq("id", id).single();
+    if (!existing) return NextResponse.json({ error: "Configuração não encontrada" }, { status: 404 });
     const { error } = await supabase.from("config_notificacoes")
       .update({ dias_atraso, label, mensagem_template, ativo })
       .eq("id", id);
-    if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+    if (error) return NextResponse.json({ error: "Erro ao atualizar configuração" }, { status: 400 });
     return NextResponse.json({ success: true });
   }
 
   if (action === "delete") {
-    // Verificar mínimo de 2 estágios
+    if (!id) return NextResponse.json({ error: "id obrigatório para delete" }, { status: 400 });
+    // Verificar que o registro existe antes de deletar
+    const { data: existing } = await supabase.from("config_notificacoes").select("id").eq("id", id).single();
+    if (!existing) return NextResponse.json({ error: "Configuração não encontrada" }, { status: 404 });
     const { count } = await supabase.from("config_notificacoes")
       .select("*", { count: "exact", head: true }).eq("ativo", true);
     if ((count || 0) <= 2)

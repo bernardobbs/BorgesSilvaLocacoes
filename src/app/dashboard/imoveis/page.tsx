@@ -6,9 +6,9 @@ import { FAMILY_OWNER_ID } from '@/lib/family';
 export default async function PropertiesListPage() {
     const supabase = await createClient();
 
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { user } } = await supabase.auth.getUser();
 
-    if (!session) {
+    if (!user) {
         redirect("/login");
     }
 

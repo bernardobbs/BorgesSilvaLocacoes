@@ -2,6 +2,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import nodemailer from "nodemailer";
 import { createClient } from "@/lib/supabase/server";
+import { FAMILY_OWNER_ID, assertFamilyOwnerConfigured } from "@/lib/family";
+import { z } from "zod";
+
+const bodySchema = z.object({ comprovante_id: z.string().uuid() });
 
 function fmtBRL(v: number) {
   return (v || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -21,8 +25,9 @@ function mesLabel(iso: string) {
 
 export async function POST(req: NextRequest) {
   try {
-    const { comprovante_id } = await req.json();
-    if (!comprovante_id) return NextResponse.json({ error: "comprovante_id obrigatório" }, { status: 400 });
+    const parsed = bodySchema.safeParse(await req.json());
+    if (!parsed.success) return NextResponse.json({ error: "comprovante_id inválido" }, { status: 400 });
+    const { comprovante_id } = parsed.data;
 
     if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
       return NextResponse.json({ error: "E-mail não configurado. Adicione GMAIL_USER e GMAIL_APP_PASSWORD nas variáveis de ambiente do Vercel." }, { status: 503 });
@@ -37,11 +42,16 @@ export async function POST(req: NextRequest) {
       .select(`id, mes_referencia, valor, valor_multa, valor_juros, receipt_hash, receipt_number,
         data_vencimento, data_pagamento, forma_pagamento,
         inquilinos (id, nome_completo, email,
-          imoveis (titulo, endereco_rua, endereco_numero, endereco_bairro, endereco_cidade))`)
+          imoveis!inner (titulo, endereco_rua, endereco_numero, endereco_bairro, endereco_cidade, proprietario_id))`)
       .eq("id", comprovante_id)
       .single();
 
     if (!comp) return NextResponse.json({ error: "Comprovante não encontrado" }, { status: 404 });
+
+    // Verificar ownership do comprovante
+    const inq0 = Array.isArray(comp.inquilinos) ? (comp.inquilinos as any)[0] : comp.inquilinos as any;
+    const im0  = Array.isArray(inq0?.imoveis)   ? (inq0.imoveis as any)[0]   : inq0?.imoveis as any;
+    if (im0?.proprietario_id !== FAMILY_OWNER_ID) return NextResponse.json({ error: "Não autorizado" }, { status: 403 });
 
     const inq = Array.isArray(comp.inquilinos) ? (comp.inquilinos as any)[0] : comp.inquilinos as any;
     const im  = Array.isArray(inq?.imoveis)    ? (inq.imoveis as any)[0]    : inq?.imoveis as any;
@@ -122,6 +132,6 @@ body{font-family:Arial,sans-serif;background:#f5f5f5;margin:0;padding:20px}
     return NextResponse.json({ success: true });
   } catch (err: any) {
     console.error("Email error:", err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    console.error("API error:", err); return NextResponse.json({ error: "Erro interno do servidor" }, { status: 500 });
   }
 }
