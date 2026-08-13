@@ -2,7 +2,7 @@
 // Rota de assinatura criptográfica de recibos (HMAC-SHA256)
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { FAMILY_OWNER_ID } from "@/lib/family";
+import { FAMILY_OWNER_ID, assertFamilyOwnerConfigured } from "@/lib/family";
 import { gerarReceiptHash, gerarReceiptNumber } from "@/lib/receiptHash";
 import { z } from "zod";
 

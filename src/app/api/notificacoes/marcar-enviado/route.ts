@@ -1,7 +1,7 @@
 // Based on Lugo — Copyright (c) 2024 Renilson Medeiros — MIT License
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { FAMILY_OWNER_ID } from "@/lib/family";
+import { FAMILY_OWNER_ID, assertFamilyOwnerConfigured } from "@/lib/family";
 import { z } from "zod";
 
 const schema = z.object({

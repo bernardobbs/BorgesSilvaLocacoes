@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import nodemailer from "nodemailer";
 import { createClient } from "@/lib/supabase/server";
-import { FAMILY_OWNER_ID } from "@/lib/family";
+import { FAMILY_OWNER_ID, assertFamilyOwnerConfigured } from "@/lib/family";
 import { checkRateLimit, rateLimitResponse } from "@/lib/rateLimit";
 import { z } from "zod";
 
