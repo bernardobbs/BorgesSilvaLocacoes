@@ -56,8 +56,11 @@ export default async function DashboardPage() {
       .eq('proprietario_id', FAMILY_OWNER_ID),
 
     // Inadimplentes completos (todas as parcelas, não só mês atual) — T1.4
+    // A view deriva de v_parcelas_devidas, que gera a série de competências do
+    // contrato. Views não aplicam RLS, então o filtro por proprietário é explícito.
     supabase.from("v_inquilinos_inadimplentes")
-      .select("id, nome_completo, titulo, endereco_bairro, parcelas_vencidas, valor_total_vencido, dias_atraso_maximo"),
+      .select("id, nome_completo, telefone, titulo, endereco_bairro, parcelas_vencidas, valor_total_vencido, dias_atraso_maximo")
+      .eq('proprietario_id', FAMILY_OWNER_ID),
   ]);
 
   return (
