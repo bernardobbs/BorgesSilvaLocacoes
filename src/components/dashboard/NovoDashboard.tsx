@@ -55,52 +55,82 @@ export default function NovoDashboard({ inquilinos, compMes, imoveis, acordos, n
       else aberto += c.valor||0;
     });
 
-    // Inadimplente: soma dos totais por inquilino na view notificacoes_pendentes
-    const porInquilino = new Map<string, number>();
-    notificacoes.forEach((n: any) => {
-      const prev = porInquilino.get(n.inquilino_id) || 0;
-      if (Number(n.dias_atraso) > prev) {
-        porInquilino.set(n.inquilino_id, Number(n.valor_total));
-      }
-    });
-    const inadimplente = Array.from(porInquilino.values()).reduce((s, v) => s + v, 0);
+    // Inadimplente: soma dos comprovantes vencidos (situation=expired) em todos os meses
+    const inadimplente = compMes
+      .filter((c: any) => c.situation === 'expired')
+      .reduce((s: number, c: any) => s + (c.valor || 0) + (c.valor_multa || 0) + (c.valor_juros || 0), 0);
 
     return { totalMensal, recebido, aberto, inadimplente };
   }, [inquilinos, compMes, notificacoes]);
 
-  /* ── Inadimplentes — fonte: notificacoes_pendentes (view do banco) ── */
+  /* ── Inadimplentes — calculado a partir de inquilinos + compMes ── */
   const inadimplentes = useMemo(() => {
-    // Deduplicar por inquilino (pode haver múltiplos meses em atraso — pega o mais antigo)
-    const porInquilino = new Map<string, any>();
-    notificacoes.forEach((n: any) => {
-      const prev = porInquilino.get(n.inquilino_id);
-      if (!prev || Number(n.dias_atraso) > Number(prev.dias_atraso)) {
-        porInquilino.set(n.inquilino_id, n);
+    const mesAtual = `${hoje.getFullYear()}-${String(hoje.getMonth()+1).padStart(2,'0')}`;
+    const result: any[] = [];
+
+    inquilinos.forEach((inq: any) => {
+      const im = Array.isArray(inq.imoveis) ? inq.imoveis[0] : inq.imoveis;
+
+      // Comprovante do mês atual (qualquer formato de data)
+      const compAtual = compMes.find((c: any) =>
+        c.inquilino_id === inq.id && c.mes_referencia?.slice(0, 7) === mesAtual
+      );
+
+      // Comprovantes vencidos de meses anteriores
+      const expirados = compMes.filter((c: any) =>
+        c.inquilino_id === inq.id && c.situation === 'expired' && c.mes_referencia?.slice(0, 7) !== mesAtual
+      );
+
+      let dias = 0;
+      let total = 0;
+
+      if (compAtual?.situation === 'billed') {
+        // Pago — verificar apenas meses anteriores vencidos
+      } else if (compAtual?.situation === 'expired') {
+        const venc = compAtual.data_vencimento
+          ? new Date(compAtual.data_vencimento + 'T00:00:00')
+          : new Date(hoje.getFullYear(), hoje.getMonth(), inq.dia_vencimento);
+        dias = Math.max(0, Math.floor((hoje.getTime() - venc.getTime()) / 86400000));
+        total = (compAtual.valor || 0) + (compAtual.valor_multa || 0) + (compAtual.valor_juros || 0);
+      } else {
+        // Sem comprovante ou situation=open — calcular pelo dia de vencimento
+        const diaVenc = new Date(hoje.getFullYear(), hoje.getMonth(), inq.dia_vencimento);
+        dias = Math.max(0, Math.floor((hoje.getTime() - diaVenc.getTime()) / 86400000));
+        if (dias > 0) {
+          const multa = inq.valor_aluguel * ((inq.multa_percentual || 0) / 100);
+          const juros = inq.valor_aluguel * ((inq.juros_percentual || 1) / 100 / 30) * dias;
+          total = inq.valor_aluguel + multa + juros;
+        }
+      }
+
+      // Adicionar débito de meses anteriores ao total
+      if (expirados.length > 0) {
+        const totalExp = expirados.reduce((s: number, c: any) =>
+          s + (c.valor || 0) + (c.valor_multa || 0) + (c.valor_juros || 0), 0);
+        total += totalExp;
+        if (dias === 0) {
+          // Usar o comprovante mais antigo para calcular dias
+          const maisAntigo = expirados.sort((a: any, b: any) =>
+            (a.data_vencimento || '').localeCompare(b.data_vencimento || ''))[0];
+          if (maisAntigo?.data_vencimento) {
+            dias = Math.max(0, Math.floor((hoje.getTime() - new Date(maisAntigo.data_vencimento + 'T00:00:00').getTime()) / 86400000));
+          }
+        }
+      }
+
+      if (dias > 0) {
+        const multa = inq.valor_aluguel * ((inq.multa_percentual || 0) / 100);
+        const juros = total - inq.valor_aluguel - multa;
+        const imovelTitulo = im?.titulo || '';
+        const msg = encodeURIComponent(
+          `Olá, *${inq.nome_completo}*!\n\nO aluguel de *${imovelTitulo}* está em aberto há *${dias} dias*.\n\n• Aluguel: ${fmtBRL(inq.valor_aluguel)}\n• Multa: ${fmtBRL(multa)}\n• Juros: ${fmtBRL(Math.max(0, juros))}\n💰 Total: *${fmtBRL(total)}*\n\n*Borges Silva Locações*`
+        );
+        result.push({ inq, im, dias, total, msg });
       }
     });
-    return Array.from(porInquilino.values())
-      .map((n: any) => {
-        const inq = inquilinos.find(i => i.id === n.inquilino_id) || {
-          id: n.inquilino_id,
-          nome_completo: n.nome_completo,
-          telefone: n.telefone,
-          valor_aluguel: Number(n.valor_aluguel),
-          multa_percentual: Number(n.multa_percentual),
-          juros_percentual: Number(n.juros_percentual),
-          imoveis: { titulo: n.imovel_titulo },
-        };
-        const im = Array.isArray((inq as any).imoveis) ? (inq as any).imoveis[0] : (inq as any).imoveis;
-        const dias = Number(n.dias_atraso);
-        const total = Number(n.valor_total);
-        const multa = Number(n.valor_aluguel) * (Number(n.multa_percentual) / 100);
-        const juros = total - Number(n.valor_aluguel) - multa;
-        const msg = encodeURIComponent(
-          `Olá, *${n.nome_completo}*!\n\nO aluguel de *${n.imovel_titulo}* está em aberto há *${dias} dias*.\n\n• Aluguel: ${fmtBRL(Number(n.valor_aluguel))}\n• Multa: ${fmtBRL(multa)}\n• Juros: ${fmtBRL(juros)}\n💰 Total: *${fmtBRL(total)}*\n\n*Borges Silva Locações*`
-        );
-        return { inq, im, dias, total, msg, n };
-      })
-      .sort((a: any, b: any) => b.dias - a.dias);
-  }, [notificacoes, inquilinos]);
+
+    return result.sort((a, b) => b.dias - a.dias);
+  }, [inquilinos, compMes, hoje]);
 
   /* ── Ocupação ── */
   const ocupacao = useMemo(() => {
