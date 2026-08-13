@@ -14,10 +14,12 @@ export default async function CobrancasPage() {
     .select("*")
     .eq('proprietario_id', FAMILY_OWNER_ID);
 
-  // T3.1 — datas corretas calculadas dinamicamente pela VIEW
+  // T3.1 — datas corretas calculadas dinamicamente pela VIEW.
+  // Views não aplicam RLS, então o filtro por proprietário é explícito.
   const { data: pendentesView } = await supabase
     .from("v_cobrancas_pendentes")
-    .select("inquilino_id, nome_completo, imovel_id, titulo, comprovante_id, mes_referencia, valor, data_vencimento, dias_atraso, estagio_cobranca");
+    .select("inquilino_id, nome_completo, imovel_id, titulo, comprovante_id, mes_referencia, valor, data_vencimento, dias_atraso, estagio_cobranca")
+    .eq('proprietario_id', FAMILY_OWNER_ID);
 
   const { data: cobrancas } = await supabase
     .from("notificacoes_cobranca")

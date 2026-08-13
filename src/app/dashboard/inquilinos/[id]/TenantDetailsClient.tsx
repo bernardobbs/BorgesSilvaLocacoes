@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { User, Phone, Mail, Building2, Calendar, FileText, Edit, UserMinus, ArrowLeft, TrendingUp, Loader2, MessageSquare, Scale, Copy, ExternalLink } from "lucide-react";
+import { User, Phone, Mail, Building2, Calendar, FileText, Edit, UserMinus, ArrowLeft, TrendingUp, Loader2, MessageSquare, Scale, Copy, ExternalLink, AlertCircle } from "lucide-react";
 import EncerrarContratoModal from "@/components/dashboard/EncerrarContratoModal";
 import { useFormFormatting } from "@/lib/hooks/useFormFormatting";
 import { createClient } from "@/lib/supabase/client";
@@ -21,8 +21,8 @@ function mesL(iso: string) { if(!iso)return""; const[y,mo]=iso.split("-"); const
 
 const formaMap:Record<string,string>={pix:"Pix",dinheiro:"Dinheiro",transferencia:"Transferência",cartao:"Cartão",cheque:"Cheque"};
 
-export default function TenantDetailsClient({ tenant, historicoPag, historicoNotif, acordos }: {
-  tenant: any; historicoPag: any[]; historicoNotif: any[]; acordos: any[];
+export default function TenantDetailsClient({ tenant, historicoPag, historicoNotif, acordos, parcelasDevidas = [] }: {
+  tenant: any; historicoPag: any[]; historicoNotif: any[]; acordos: any[]; parcelasDevidas?: any[];
 }) {
   const router = useRouter();
   const { formatarCPF, formatarTelefone } = useFormFormatting();
@@ -152,6 +152,48 @@ export default function TenantDetailsClient({ tenant, historicoPag, historicoNot
           )}
         </div>
       </div>
+
+      {/* Parcelas em aberto — geradas a partir do contrato, não de comprovantes */}
+      {parcelasDevidas.length > 0 && (
+        <Card className="border-red-200">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2 text-red-700">
+              <AlertCircle className="h-4 w-4"/>
+              Parcelas em aberto
+              <Badge className="bg-red-100 text-red-700 border-red-200">
+                {parcelasDevidas.length}
+              </Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="divide-y">
+              {parcelasDevidas.map((p: any) => (
+                <div key={p.mes_referencia} className="flex items-center gap-3 px-6 py-2.5 text-sm">
+                  <span className="font-medium w-24 shrink-0">{mesL(p.mes_referencia)}</span>
+                  <span className="text-xs text-muted-foreground shrink-0">
+                    venc. {fmtD(p.data_vencimento)}
+                  </span>
+                  <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-red-50 text-red-700 border border-red-200 shrink-0">
+                    D+{p.dias_atraso}
+                  </span>
+                  <span className="flex-1 text-right text-xs text-muted-foreground tabular-nums">
+                    {fmtV(Number(p.valor))} + multa {fmtV(Number(p.valor_multa))} + juros {fmtV(Number(p.valor_juros))}
+                  </span>
+                  <span className="w-28 text-right font-semibold text-red-700 tabular-nums shrink-0">
+                    {fmtV(Number(p.valor_total))}
+                  </span>
+                </div>
+              ))}
+            </div>
+            <div className="flex items-center justify-between px-6 py-3 border-t bg-red-50/50">
+              <span className="text-sm font-medium">Total devido</span>
+              <span className="text-base font-bold text-red-700 tabular-nums">
+                {fmtV(parcelasDevidas.reduce((s: number, p: any) => s + Number(p.valor_total || 0), 0))}
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Dados pessoais */}
       <Card>

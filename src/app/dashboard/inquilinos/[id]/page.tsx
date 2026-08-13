@@ -9,7 +9,7 @@ export default async function TenantDetailPage({ params }: { params: Promise<{ i
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const [tenantRes, pagsRes, notifsRes, acordosRes] = await Promise.all([
+  const [tenantRes, pagsRes, notifsRes, acordosRes, devidasRes] = await Promise.all([
     supabase.from("inquilinos")
       .select("id, nome_completo, cpf, cnpj, tipo_pessoa, telefone, email, imovel_id, dia_vencimento, data_inicio, data_fim, status, observacoes, valor_aluguel, multa_percentual, juros_percentual, garantia, numero_contrato, enviado_advogado_em, advogado_status, advogado_obs, imoveis(id, titulo, endereco_rua, endereco_numero, endereco_bairro, endereco_cidade)")
       .eq("id", id).maybeSingle(),
@@ -22,6 +22,12 @@ export default async function TenantDetailPage({ params }: { params: Promise<{ i
     supabase.from("acordos")
       .select("id, valor_original, valor_acordo, desconto, num_parcelas, valor_parcela, meses_cobertos, status, observacoes, created_at, parcelas_acordo(id, numero, valor, data_vencimento, situation, data_pagamento, forma_pagamento)")
       .eq("inquilino_id", id).order("created_at", { ascending: false }),
+    // Parcelas em aberto — derivadas do contrato, não de comprovantes.
+    // Um mês sem pagamento registrado não gera linha em comprovantes, então
+    // só a série gerada por v_parcelas_devidas revela o que está devendo.
+    supabase.from("v_parcelas_devidas")
+      .select("mes_referencia, data_vencimento, dias_atraso, valor, valor_multa, valor_juros, valor_total")
+      .eq("inquilino_id", id).order("mes_referencia", { ascending: true }),
   ]);
 
   if (!tenantRes.data) redirect("/dashboard/inquilinos");
@@ -39,6 +45,7 @@ export default async function TenantDetailPage({ params }: { params: Promise<{ i
       historicoPag={(pagsRes.data || []) as any}
       historicoNotif={(notifsRes.data || []) as any}
       acordos={(acordosRes.data || []) as any}
+      parcelasDevidas={(devidasRes.data || []) as any}
     />
   );
 }
