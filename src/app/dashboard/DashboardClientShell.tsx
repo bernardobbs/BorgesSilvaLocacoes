@@ -6,9 +6,12 @@ import { Plus } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
 export default function DashboardClientShell() {
-    const { profile, loading: authLoading } = useAuth();
+    const { user, profile, loading: authLoading } = useAuth();
 
-    const firstName = profile?.nome_completo?.split(' ')[0] || 'Usuário';
+    const firstName = profile?.nome_completo?.split(' ')[0]
+        || (user?.user_metadata?.nome_completo as string | undefined)?.split(' ')[0]
+        || user?.email?.split('@')[0]
+        || 'Usuário';
 
     const isExpired = !!(
         profile?.subscription_status === 'trial' &&

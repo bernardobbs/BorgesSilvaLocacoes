@@ -97,9 +97,10 @@ export default function NovoDashboard({ inquilinos, compMes, imoveis, acordos, n
         const diaVenc = new Date(hoje.getFullYear(), hoje.getMonth(), inq.dia_vencimento);
         dias = Math.max(0, Math.floor((hoje.getTime() - diaVenc.getTime()) / 86400000));
         if (dias > 0) {
-          const multa = inq.valor_aluguel * ((inq.multa_percentual || 0) / 100);
-          const juros = inq.valor_aluguel * ((inq.juros_percentual || 1) / 100 / 30) * dias;
-          total = inq.valor_aluguel + multa + juros;
+          const valAluguel = Number(inq.valor_aluguel) || 0;
+          const multa = valAluguel * ((inq.multa_percentual || 0) / 100);
+          const juros = valAluguel * ((inq.juros_percentual || 1) / 100 / 30) * dias;
+          total = valAluguel + multa + juros;
         }
       }
 
@@ -119,8 +120,9 @@ export default function NovoDashboard({ inquilinos, compMes, imoveis, acordos, n
       }
 
       if (dias > 0) {
-        const multa = inq.valor_aluguel * ((inq.multa_percentual || 0) / 100);
-        const juros = total - inq.valor_aluguel - multa;
+        const valAluguel = Number(inq.valor_aluguel) || 0;
+        const multa = valAluguel * ((inq.multa_percentual || 0) / 100);
+        const juros = total - valAluguel - multa;
         const imovelTitulo = im?.titulo || '';
         const msg = encodeURIComponent(
           `Olá, *${inq.nome_completo}*!\n\nO aluguel de *${imovelTitulo}* está em aberto há *${dias} dias*.\n\n• Aluguel: ${fmtBRL(inq.valor_aluguel)}\n• Multa: ${fmtBRL(multa)}\n• Juros: ${fmtBRL(Math.max(0, juros))}\n💰 Total: *${fmtBRL(total)}*\n\n*Borges Silva Locações*`
