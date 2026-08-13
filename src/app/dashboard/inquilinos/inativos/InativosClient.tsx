@@ -1,12 +1,14 @@
 // Based on Lugo — Copyright (c) 2024 Renilson Medeiros — MIT License
 "use client";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import Link from "next/link";
 import { ArrowLeft, FileWarning, Download, ExternalLink, Loader2, ChevronDown, ChevronUp, Phone, Mail, Building2 } from "lucide-react";
 import { toast } from "sonner";
+import { createClient } from "@/lib/supabase/client";
 
 function fmtBRL(v:number){return(v||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});}
 function fmtData(iso:string|null){if(!iso)return"—";const[y,m,d]=iso.split("-");return`${d}/${m}/${y}`;}
@@ -34,6 +36,7 @@ export default function InativosClient({ inativos, comprovantesMap, notificacoes
   const [advModal, setAdvModal] = useState<{id:string;nome:string}|null>(null);
   const [advObs, setAdvObs] = useState("");
 
+  const router = useRouter();
   const temDivida = inativos.filter(i => (i.divida_residual||0) > 0);
   const semDivida = inativos.filter(i => (i.divida_residual||0) === 0);
 
@@ -71,20 +74,25 @@ export default function InativosClient({ inativos, comprovantesMap, notificacoes
   async function marcarEnviadoAdvogado(id: string, obs: string) {
     setMarcandoAdv(id);
     try {
-      const { createClient } = await import("@/lib/supabase/client");
-      const supabase = createClient();
-      const { error } = await supabase
-        .from("inquilinos")
-        .update({
-          enviado_advogado_em: new Date().toISOString(),
-          advogado_status: "enviado",
-          advogado_obs: obs || null,
-        })
-        .eq("id", id);
-      if (error) throw error;
+      const sb = createClient();
+      const { data: { session } } = await sb.auth.getSession();
+      if (!session) throw new Error("Sessão expirada. Faça login novamente.");
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+      const res = await fetch(`${supabaseUrl}/functions/v1/enviar_advogado`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ inquilino_id: id, observacoes: obs || null, status: "enviado" }),
+        signal: AbortSignal.timeout(20000),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) throw new Error(json.error || `Erro ${res.status}`);
       toast.success("Caso marcado como enviado ao advogado!");
-      setAdvModal(null); setAdvObs("");
-      window.location.reload();
+      setAdvModal(null);
+      setAdvObs("");
+      router.refresh();
     } catch(e:any) { toast.error("Erro ao registrar", { description: e.message }); }
     finally { setMarcandoAdv(null); }
   }

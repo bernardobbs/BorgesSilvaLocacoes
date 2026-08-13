@@ -16,7 +16,7 @@ export default async function InativosPage() {
       data_inicio, data_fim, data_desocupacao, motivo_encerramento,
       valor_aluguel, divida_residual, relatorio_pdf_url, obs_encerramento,
       garantia, fiador_nome, fiador_cpf, fiador_telefone, numero_contrato,
-      imovel_id,
+      imovel_id, enviado_advogado_em, advogado_status, advogado_obs,
       imoveis!inner (
         id, titulo, endereco_rua, endereco_numero, endereco_bairro,
         endereco_cidade, endereco_estado, proprietario_id

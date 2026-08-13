@@ -141,8 +141,26 @@ export default function ReajusteModal({ open, onClose, onSuccess, inquilinoId, n
             </div>
           )}
 
-          <div className="flex gap-2 justify-end pt-2">
+          <div className="flex gap-2 justify-end pt-2 flex-wrap">
             <Button variant="outline" onClick={onClose} disabled={salvando}>Cancelar</Button>
+            <Button variant="outline" className="text-muted-foreground" disabled={salvando}
+              onClick={async () => {
+                setSalvando(true);
+                try {
+                  const res = await fetch("/api/reajuste/aplicar", {
+                    method: "POST", headers: {"Content-Type":"application/json"},
+                    body: JSON.stringify({ inquilino_id: inquilinoId, valor_novo: valorAtual, percentual: 0, indice: "fixo" }),
+                  });
+                  const json = await res.json();
+                  if (!res.ok) throw new Error(json.error);
+                  toast.success("Reajuste postergado por 1 ano!", { description: nomeInquilino });
+                  onSuccess(valorAtual);
+                  onClose();
+                } catch (e:any) { toast.error("Erro ao postergar", { description: e.message }); }
+                finally { setSalvando(false); }
+              }}>
+              {salvando ? <Loader2 className="h-4 w-4 animate-spin" /> : "Postergar 1 ano (0%)"}
+            </Button>
             <Button onClick={aplicar} disabled={salvando || pct <= 0 || carregando}
               className="gap-2">
               {salvando ? <><Loader2 className="h-4 w-4 animate-spin" />Aplicando...</>

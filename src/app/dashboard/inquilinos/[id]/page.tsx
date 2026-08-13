@@ -11,7 +11,7 @@ export default async function TenantDetailPage({ params }: { params: Promise<{ i
 
   const [tenantRes, pagsRes, notifsRes, acordosRes] = await Promise.all([
     supabase.from("inquilinos")
-      .select("id, nome_completo, cpf, cnpj, tipo_pessoa, telefone, email, imovel_id, dia_vencimento, data_inicio, data_fim, status, observacoes, valor_aluguel, multa_percentual, juros_percentual, garantia, numero_contrato, imoveis(id, titulo, endereco_rua, endereco_numero, endereco_bairro, endereco_cidade)")
+      .select("id, nome_completo, cpf, cnpj, tipo_pessoa, telefone, email, imovel_id, dia_vencimento, data_inicio, data_fim, status, observacoes, valor_aluguel, multa_percentual, juros_percentual, garantia, numero_contrato, enviado_advogado_em, advogado_status, advogado_obs, imoveis(id, titulo, endereco_rua, endereco_numero, endereco_bairro, endereco_cidade)")
       .eq("id", id).maybeSingle(),
     supabase.from("comprovantes")
       .select("id, mes_referencia, valor, valor_multa, valor_juros, situation, data_vencimento, data_pagamento, forma_pagamento, receipt_hash, receipt_number")

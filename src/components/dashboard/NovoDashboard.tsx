@@ -22,9 +22,10 @@ interface Props {
   imoveis: any[];
   acordos: any[];
   notificacoes: any[];
+  inadimplentesDB?: any[];
 }
 
-export default function NovoDashboard({ inquilinos, compMes, imoveis, acordos, notificacoes }: Props) {
+export default function NovoDashboard({ inquilinos, compMes, imoveis, acordos, notificacoes, inadimplentesDB = [] }: Props) {
   const router = useRouter();
   const [reajusteModal, setReajusteModal] = useState<{id:string;nome:string;valor:number;indice:string}|null>(null);
   const hoje = new Date();
@@ -58,81 +59,27 @@ export default function NovoDashboard({ inquilinos, compMes, imoveis, acordos, n
     // Inadimplente: soma dos comprovantes vencidos (situation=expired) em todos os meses
     const inadimplente = compMes
       .filter((c: any) => c.situation === 'expired')
-      .reduce((s: number, c: any) => s + (c.valor || 0) + (c.valor_multa || 0) + (c.valor_juros || 0), 0);
+      .reduce((s: number, c: any) => s + (Number(c.valor)||0) + (Number(c.valor_multa)||0) + (Number(c.valor_juros)||0), 0);
 
     return { totalMensal, recebido, aberto, inadimplente };
-  }, [inquilinos, compMes, notificacoes]);
+  }, [inquilinos, compMes]);
 
-  /* ── Inadimplentes — calculado a partir de inquilinos + compMes ── */
+  /* ── Inadimplentes — usa v_inquilinos_inadimplentes (todas as parcelas, não só mês atual) — T1.4 ── */
   const inadimplentes = useMemo(() => {
-    const mesAtual = `${hoje.getFullYear()}-${String(hoje.getMonth()+1).padStart(2,'0')}`;
-    const result: any[] = [];
-
-    inquilinos.forEach((inq: any) => {
-      const im = Array.isArray(inq.imoveis) ? inq.imoveis[0] : inq.imoveis;
-
-      // Comprovante do mês atual (qualquer formato de data)
-      const compAtual = compMes.find((c: any) =>
-        c.inquilino_id === inq.id && c.mes_referencia?.slice(0, 7) === mesAtual
+    return inadimplentesDB.map((row: any) => {
+      const inq = inquilinos.find(i => i.id === row.id);
+      const telefone = row.telefone || inq?.telefone || "";
+      // Colunas numeric do Postgres chegam como string no JSON do PostgREST
+      const dias = Number(row.dias_atraso_maximo) || 0;
+      const total = Number(row.valor_total_vencido) || 0;
+      const parcelas = Number(row.parcelas_vencidas) || 0;
+      const im = { titulo: row.titulo };
+      const msg = encodeURIComponent(
+        `Olá, *${row.nome_completo}*!\n\nVocê possui *${parcelas} parcela${parcelas!==1?"s":""}* de aluguel em aberto no imóvel *${row.titulo}*.\n\n💰 Total em atraso: *${fmtBRL(total)}*\nMaior atraso: *${dias} dias*\n\n*Borges Silva Locações*`
       );
-
-      // Comprovantes vencidos de meses anteriores
-      const expirados = compMes.filter((c: any) =>
-        c.inquilino_id === inq.id && c.situation === 'expired' && c.mes_referencia?.slice(0, 7) !== mesAtual
-      );
-
-      let dias = 0;
-      let total = 0;
-
-      if (compAtual?.situation === 'billed') {
-        // Pago — verificar apenas meses anteriores vencidos
-      } else if (compAtual?.situation === 'expired') {
-        const venc = compAtual.data_vencimento
-          ? new Date(compAtual.data_vencimento + 'T00:00:00')
-          : new Date(hoje.getFullYear(), hoje.getMonth(), inq.dia_vencimento);
-        dias = Math.max(0, Math.floor((hoje.getTime() - venc.getTime()) / 86400000));
-        total = (compAtual.valor || 0) + (compAtual.valor_multa || 0) + (compAtual.valor_juros || 0);
-      } else {
-        // Sem comprovante ou situation=open — calcular pelo dia de vencimento
-        const diaVenc = new Date(hoje.getFullYear(), hoje.getMonth(), inq.dia_vencimento);
-        dias = Math.max(0, Math.floor((hoje.getTime() - diaVenc.getTime()) / 86400000));
-        if (dias > 0) {
-          const valAluguel = Number(inq.valor_aluguel) || 0;
-          const multa = valAluguel * ((inq.multa_percentual || 0) / 100);
-          const juros = valAluguel * ((inq.juros_percentual || 1) / 100 / 30) * dias;
-          total = valAluguel + multa + juros;
-        }
-      }
-
-      // Adicionar débito de meses anteriores ao total
-      if (expirados.length > 0) {
-        const totalExp = expirados.reduce((s: number, c: any) =>
-          s + (c.valor || 0) + (c.valor_multa || 0) + (c.valor_juros || 0), 0);
-        total += totalExp;
-        if (dias === 0) {
-          // Usar o comprovante mais antigo para calcular dias
-          const maisAntigo = expirados.sort((a: any, b: any) =>
-            (a.data_vencimento || '').localeCompare(b.data_vencimento || ''))[0];
-          if (maisAntigo?.data_vencimento) {
-            dias = Math.max(0, Math.floor((hoje.getTime() - new Date(maisAntigo.data_vencimento + 'T00:00:00').getTime()) / 86400000));
-          }
-        }
-      }
-
-      if (dias > 0) {
-        const valAluguel = Number(inq.valor_aluguel) || 0;
-        const multa = valAluguel * ((inq.multa_percentual || 0) / 100);
-        const juros = total - valAluguel - multa;
-        const imovelTitulo = im?.titulo || '';
-        const msg = encodeURIComponent(
-          `Olá, *${inq.nome_completo}*!\n\nO aluguel de *${imovelTitulo}* está em aberto há *${dias} dias*.\n\n• Aluguel: ${fmtBRL(inq.valor_aluguel)}\n• Multa: ${fmtBRL(multa)}\n• Juros: ${fmtBRL(Math.max(0, juros))}\n💰 Total: *${fmtBRL(total)}*\n\n*Borges Silva Locações*`
-        );
-        result.push({ inq, im, dias, total, msg });
-      }
-    });
-
-    return result.sort((a, b) => b.dias - a.dias);
-  }, [inquilinos, compMes, hoje]);
+      return { inq: { ...row, nome_completo: row.nome_completo, telefone }, im, dias, total, parcelas, msg };
+    }).sort((a:any,b:any)=>b.dias-a.dias);
+  }, [inadimplentesDB, inquilinos]);
 
   /* ── Ocupação ── */
   const ocupacao = useMemo(() => {
@@ -215,7 +162,7 @@ export default function NovoDashboard({ inquilinos, compMes, imoveis, acordos, n
           { label:"Total a receber", val:fmtBRL(financeiro.totalMensal), sub:`${inquilinos.length} contratos ativos`, cls:"" },
           { label:"Recebido", val:fmtBRL(financeiro.recebido), sub:`${pct(financeiro.recebido,financeiro.totalMensal)}% do mês`, cls:"text-green-600 dark:text-green-400" },
           { label:"A vencer", val:fmtBRL(financeiro.aberto), sub:"em aberto", cls:"text-yellow-600 dark:text-yellow-400" },
-          { label:"Inadimplente", val:fmtBRL(financeiro.inadimplente), sub:`${inadimplentes.length} inquilino${inadimplentes.length!==1?"s":""}`, cls:"text-red-600 dark:text-red-400" },
+          { label:"Inadimplente", val:fmtBRL(inadimplentesDB.reduce((s:number,r:any)=>s+(r.valor_total_vencido||0),0)||financeiro.inadimplente), sub:`${inadimplentes.length} inquilino${inadimplentes.length!==1?"s":""}`, cls:"text-red-600 dark:text-red-400" },
         ].map(({label,val,sub,cls})=>(
           <div key={label} className="bg-muted rounded-lg p-3">
             <p className="text-xs text-muted-foreground mb-1">{label}</p>
@@ -245,7 +192,7 @@ export default function NovoDashboard({ inquilinos, compMes, imoveis, acordos, n
                   <div key={item.inq.id} className="flex items-center gap-3 px-4 py-3 border-b last:border-0" style={{borderLeft:"3px solid #EF4444"}}>
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-sm truncate">{item.inq.nome_completo}</p>
-                      <p className="text-xs text-muted-foreground truncate">{item.im?.titulo} · D+{item.dias}</p>
+                      <p className="text-xs text-muted-foreground truncate">{item.im?.titulo} · {item.parcelas} parcela{item.parcelas!==1?"s":""} · D+{item.dias}</p>
                     </div>
                     <div className="text-right shrink-0">
                       <p className="text-sm font-medium text-red-600">{fmtBRL(item.total)}</p>

@@ -115,7 +115,6 @@ export default function PropertyForm() {
 
   // Carregar dados se estiver editando
   useEffect(() => {
-    console.log("[PropertyForm] useEffect — isEditing:", isEditing, "id:", id);
     if (isEditing && id) {
       loadProperty();
     }
@@ -147,10 +146,8 @@ export default function PropertyForm() {
   };
 
   const loadProperty = async () => {
-    console.log("[PropertyForm] loadProperty start, id:", id);
     try {
       setIsLoading(true);
-      console.log("[PropertyForm] querying supabase...");
       const { data, error } = await supabase
         .from('imoveis')
         .select('*')
@@ -158,7 +155,6 @@ export default function PropertyForm() {
         .single();
 
       if (error) throw error;
-      console.log("[PropertyForm] data received:", data?.titulo);
 
       setFormData({
         cep: data.endereco_cep || "",

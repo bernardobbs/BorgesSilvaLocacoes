@@ -28,7 +28,7 @@ const ESTAGIO_COLOR: Record<number,string> = {
   3: "bg-red-100 text-red-800 border-red-200",
 };
 
-export default function CobrancasClient({ cobrancas, pendentes }: { cobrancas: any[]; pendentes: any[] }) {
+export default function CobrancasClient({ cobrancas, pendentes, pendentesView = [] }: { cobrancas: any[]; pendentes: any[]; pendentesView?: any[] }) {
   const [busca, setBusca] = useState("");
   const [filtroEstagio, setFiltroEstagio] = useState("todos");
 
@@ -55,6 +55,40 @@ export default function CobrancasClient({ cobrancas, pendentes }: { cobrancas: a
         title="Registro de cobranças"
         subtitle={`${totalEnviados} notificações enviadas via WhatsApp`}
       />
+
+      {/* ── INADIMPLENTES COM DATAS CORRETAS (v_cobrancas_pendentes) — T3.1 ── */}
+      {pendentesView.length > 0 && (
+        <div className="space-y-2">
+          <h2 className="text-sm font-semibold text-red-700 uppercase tracking-wide flex items-center gap-2">
+            <Bell className="h-4 w-4"/>Inadimplentes ({pendentesView.length})
+          </h2>
+          <Card>
+            <CardContent className="p-0">
+              <div className="divide-y">
+                {pendentesView.map((r: any) => (
+                  <div key={`${r.inquilino_id}-${r.comprovante_id}`} className="flex items-center gap-4 px-4 py-3">
+                    <span className={`text-xs font-semibold px-2 py-1 rounded-full border shrink-0 ${
+                      r.estagio_cobranca >= 3 ? "bg-red-100 text-red-800 border-red-200"
+                      : r.estagio_cobranca === 2 ? "bg-orange-100 text-orange-800 border-orange-200"
+                      : "bg-yellow-100 text-yellow-800 border-yellow-200"
+                    }`}>D+{r.dias_atraso}</span>
+                    <div className="flex-1 min-w-0">
+                      <Link href={`/dashboard/inquilinos/${r.inquilino_id}`} className="font-medium text-sm hover:text-primary hover:underline">
+                        {r.nome_completo}
+                      </Link>
+                      <p className="text-xs text-muted-foreground">{r.titulo} · ref. {mesLabel(r.mes_referencia)}</p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className="text-sm font-medium text-red-600">{fmtBRL(r.valor)}</p>
+                      <p className="text-xs text-muted-foreground">venc. {fmtDataHora(r.data_vencimento + "T00:00")}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* ── PENDENTES ── */}
       {pendentes.length > 0 && (
