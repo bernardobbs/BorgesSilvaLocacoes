@@ -2,7 +2,7 @@
 // Rota de keepalive — evita que o Supabase pause por inatividade (free tier)
 // Chamada pelo cron-job.org a cada 3 dias
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +15,13 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const supabase = await createClient();
+    // O cron chama esta rota sem sessão, então o cliente de servidor agiria
+    // como `anon`. Isso obrigava config_sistema a manter GRANT para anon — a
+    // chave pública embarcada no bundle do cliente —, deixando a tabela
+    // acessível a qualquer um com a URL do projeto. Usando a service role, a
+    // tabela pode ser trancada (REVOKE anon + RLS) sem quebrar o keepalive.
+    // A rota já falha fechada acima quando KEEPALIVE_SECRET não confere.
+    const supabase = createAdminClient();
 
     // Query simples que mantém o banco ativo
     const { error } = await supabase
